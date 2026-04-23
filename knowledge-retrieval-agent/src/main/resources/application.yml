@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: knowledge-retrieval-agent
+  ai:
+    openai:
+      api-key: 
+      base-url: http://localhost:11434
+      chat:
+        options:
+          model: ZhipuAI/GLM-5
+          temperature: 0.7
+
+server:
+  port: 8081
+
+logging:
+  level:
+    com.agent.knowledge: DEBUG
+    io.agentscope: TRACE
+    io.agentscope.core: TRACE
+    io.agentscope.core.model: TRACE
+    io.agentscope.core.skill: TRACE
+    io.agentscope.core.tool: TRACE
+    okhttp3: DEBUG
+    okhttp3.internal.http: DEBUG
+    org.springframework.web.client: DEBUG
+    org.springframework.ai: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/knowledge-agent.log
+    max-size: 10MB
+    max-history: 7
