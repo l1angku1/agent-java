@@ -1,4 +1,4 @@
-package com.agent.knowledge.model;
+package com.agent.java.model;
 
 public class KnowledgeRequest {
     private String query;

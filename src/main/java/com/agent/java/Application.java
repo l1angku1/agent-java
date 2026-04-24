@@ -1,4 +1,4 @@
-package com.agent.knowledge;
+package com.agent.java;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

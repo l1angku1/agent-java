@@ -1,15 +1,16 @@
-package com.agent.knowledge.config;
+package com.agent.java.config;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.agent.knowledge.tool.FileSystemTools;
+import com.agent.java.tool.FileSystemTools;
 
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.model.OpenAIChatModel;
@@ -17,7 +18,6 @@ import io.agentscope.core.skill.AgentSkill;
 import io.agentscope.core.skill.SkillBox;
 import io.agentscope.core.skill.repository.ClasspathSkillRepository;
 import io.agentscope.core.tool.Toolkit;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Configuration
@@ -60,7 +60,6 @@ public class AgentConfig {
             log.info("加载到的技能数量: {}", skills.size());
             for (AgentSkill skill : skills) {
                 log.info("加载到的技能: {}", skill.getName());
-                log.info("注册技能: {}", skill.getName());
                 skillBox.registration().skill(skill).apply();
             }
         } catch (IOException e) {

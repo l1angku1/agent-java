@@ -1,8 +1,8 @@
-package com.agent.knowledge.controller;
+package com.agent.java.controller;
 
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
-import com.agent.knowledge.model.KnowledgeRequest;
+import com.agent.java.model.KnowledgeRequest;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;

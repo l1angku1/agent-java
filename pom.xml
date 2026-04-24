@@ -13,12 +13,9 @@
     </parent>
 
     <groupId>com.agent</groupId>
-    <artifactId>knowledge-retrieval-agent</artifactId>
+    <artifactId>agent-java</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
-
-    <name>Knowledge Retrieval Agent</name>
-    <description>AI-powered knowledge retrieval assistant using AgentScope</description>
 
     <properties>
         <java.version>21</java.version>
@@ -92,6 +89,19 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.38</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
         </plugins>
