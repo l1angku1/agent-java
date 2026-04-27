@@ -70,7 +70,7 @@ public class AgentConfig {
         return ReActAgent.builder()
                 .name("KnowledgeRetrievalAgent")
                 .sysPrompt(
-                        "你是一个智能助手。当用户询问关于智能温控咖啡杯的任何问题时，你必须使用 retrieval-skill 来检索本地知识库中的信息，然后基于检索到的内容回答问题。如果本地知识库中没有相关内容，再基于你的知识回答。")
+                        "你是一个智能助手。当用户询问任何问题时，你必须使用 retrieval-skill 来检索本地知识库中的信息，然后基于检索到的内容回答问题。如果本地知识库中没有相关内容，再基于你的知识回答。")
                 .model(createModel())
                 .toolkit(toolkit)
                 .skillBox(skillBox)
