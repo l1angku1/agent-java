@@ -190,10 +190,12 @@ public class PipelinePlanExecutor {
 
     /**
      * 取消计划
+     * 支持取消 PLANNING（待确认）和 RUNNING（执行中）状态的计划
      */
     public void cancelPlan(String planId) {
         Plan plan = runningPlans.get(planId);
-        if (plan != null && plan.getStatus() == PlanStatus.RUNNING) {
+        if (plan != null && 
+            (plan.getStatus() == PlanStatus.RUNNING || plan.getStatus() == PlanStatus.PLANNING)) {
             plan.setStatus(PlanStatus.CANCELLED);
             plan.setCompletedAt(LocalDateTime.now());
         }

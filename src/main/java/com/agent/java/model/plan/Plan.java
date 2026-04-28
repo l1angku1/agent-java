@@ -59,7 +59,7 @@ public class Plan {
      */
     public static Plan create(String name, String description, String originalRequest) {
         return Plan.builder()
-                .planId(UUID.randomUUID().toString())
+                .planId(UUID.randomUUID().toString().replace("-", ""))
                 .name(name)
                 .description(description)
                 .originalRequest(originalRequest)

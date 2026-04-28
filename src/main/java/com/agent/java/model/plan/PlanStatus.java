@@ -8,6 +8,9 @@ public enum PlanStatus {
     /** 计划已创建，等待执行 */
     CREATED,
 
+    /** 计划生成完毕，等待用户确认 */
+    PLANNING,
+
     /** 计划开始执行 */
     STARTED,
 
