@@ -1,15 +1,18 @@
 package com.agent.java.plan;
 
+import java.time.Duration;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import com.agent.java.model.plan.PlanRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
+import io.agentscope.core.model.OpenAIChatModel;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
-
-import java.time.Duration;
 
 /**
  * 计划生成器
@@ -19,20 +22,14 @@ import java.time.Duration;
 @Component
 public class PlanGenerator {
 
-    @Value("${spring.ai.openai.api-key}")
-    private String apiKey;
-
-    @Value("${spring.ai.openai.base-url}")
-    private String baseUrl;
-
-    @Value("${spring.ai.openai.chat.options.model}")
-    private String modelName;
+    @Autowired
+    private OpenAIChatModel chatModel;
 
     /** 任务规划的Prompt模板 */
     private static final String PLANNING_PROMPT = """
             你是一个任务规划专家。当用户提出一个需求或问题时，你需要将其拆解成多个有序的执行步骤。
 
-            请按照以下JSON格式输出计划（只输出JSON，不要其他内容）：
+            请按照以下JSON格式输出计划(只输出JSON, 不要其他内容):
             {
                 "name": "计划名称",
                 "description": "计划简短描述",
@@ -40,7 +37,7 @@ public class PlanGenerator {
                 "steps": [
                     {
                         "name": "步骤1名称",
-                        "instruction": "步骤1的详细指令，包含该步骤需要完成的具体任务",
+                        "instruction": "步骤1的详细指令, 包含该步骤需要完成的具体任务",
                         "outputKey": "step1_result"
                     },
                     {
@@ -51,13 +48,13 @@ public class PlanGenerator {
                 ]
             }
 
-            拆分原则：
+            拆分原则:
             1. 每个步骤应该是独立的、可执行的任务单元
             2. 步骤之间有明确的依赖关系，后续步骤可以用 {前序outputKey} 引用前序结果
             3. 通常 3-7 个步骤比较合适，复杂任务也不要超过 10 个步骤
             4. 第一步通常是信息收集或问题理解，后续步骤是分析、执行、汇总等
 
-            现在请分析以下用户需求并生成计划：
+            现在请分析以下用户需求并生成计划:
             """;
 
     /**
@@ -68,9 +65,9 @@ public class PlanGenerator {
      */
     public PlanRequest generatePlan(String userRequest) {
         try {
-            ReActAgent agent = createPlanningAgent();
+            ReActAgent agent = createAgent();
 
-            String fullPrompt = PLANNING_PROMPT + "\n\n用户需求：" + userRequest;
+            String fullPrompt = PLANNING_PROMPT + "\n\n用户需求: " + userRequest;
 
             Msg userMsg = Msg.builder()
                     .textContent(fullPrompt)
@@ -131,22 +128,11 @@ public class PlanGenerator {
     /**
      * 创建规划Agent
      */
-    private ReActAgent createPlanningAgent() {
-        String effectiveBaseUrl = baseUrl;
-        if (effectiveBaseUrl != null && !effectiveBaseUrl.endsWith("/v1") && !effectiveBaseUrl.endsWith("/v1/")) {
-            effectiveBaseUrl = effectiveBaseUrl.endsWith("/") ? effectiveBaseUrl + "v1" : effectiveBaseUrl + "/v1";
-        }
-
-        io.agentscope.core.model.OpenAIChatModel model = io.agentscope.core.model.OpenAIChatModel.builder()
-                .apiKey(apiKey)
-                .baseUrl(effectiveBaseUrl)
-                .modelName(modelName)
-                .build();
-
+    private ReActAgent createAgent() {
         return ReActAgent.builder()
                 .name("PlanGeneratorAgent")
-                .sysPrompt("你是一个专业的任务规划专家，擅长将复杂需求拆解成可执行的步骤。你的输出必须是有效的JSON格式计划。")
-                .model(model)
+                .sysPrompt("你是一个专业的任务规划专家, 擅长将复杂需求拆解成可执行的步骤。你的输出必须是有效的JSON格式计划。")
+                .model(chatModel)
                 .build();
     }
 }

@@ -1,22 +1,24 @@
 package com.agent.java.plan;
 
-import com.agent.java.model.plan.Plan;
-import com.agent.java.model.plan.PlanStatus;
-import com.agent.java.model.plan.PlanRequest;
-import com.agent.java.model.plan.PlanRequest.StepConfig;
-import com.agent.java.tool.FileSystemTools;
-import io.agentscope.core.ReActAgent;
-import io.agentscope.core.message.Msg;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import reactor.core.publisher.Mono;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.agent.java.model.plan.Plan;
+import com.agent.java.model.plan.PlanRequest;
+import com.agent.java.model.plan.PlanRequest.StepConfig;
+import com.agent.java.model.plan.PlanStatus;
+import com.agent.java.tool.FileSystemTools;
+
+import io.agentscope.core.ReActAgent;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.model.OpenAIChatModel;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 /**
  * Pipeline计划执行器
@@ -26,14 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class PipelinePlanExecutor {
 
-    @Value("${spring.ai.openai.api-key}")
-    private String apiKey;
-
-    @Value("${spring.ai.openai.base-url}")
-    private String baseUrl;
-
-    @Value("${spring.ai.openai.chat.options.model}")
-    private String modelName;
+    @Autowired
+    private OpenAIChatModel chatModel;
 
     @Autowired
     private FileSystemTools fileSystemTools;
@@ -143,7 +139,7 @@ public class PipelinePlanExecutor {
     private Mono<String> callAgent(String instruction) {
         return Mono.create(emitter -> {
             try {
-                ReActAgent agent = createReActAgent();
+                ReActAgent agent = createAgent();
                 Msg userMsg = Msg.builder().textContent(instruction).build();
 
                 agent.call(userMsg)
@@ -153,8 +149,7 @@ public class PipelinePlanExecutor {
                                 error -> {
                                     log.error("Agent call failed", error);
                                     emitter.error(error);
-                                }
-                        );
+                                });
             } catch (Exception e) {
                 emitter.error(e);
             }
@@ -164,25 +159,14 @@ public class PipelinePlanExecutor {
     /**
      * 创建执行步骤的Agent
      */
-    private ReActAgent createReActAgent() {
-        String effectiveBaseUrl = baseUrl;
-        if (effectiveBaseUrl != null && !effectiveBaseUrl.endsWith("/v1") && !effectiveBaseUrl.endsWith("/v1/")) {
-            effectiveBaseUrl = effectiveBaseUrl.endsWith("/") ? effectiveBaseUrl + "v1" : effectiveBaseUrl + "/v1";
-        }
-
-        io.agentscope.core.model.OpenAIChatModel model = io.agentscope.core.model.OpenAIChatModel.builder()
-                .apiKey(apiKey)
-                .baseUrl(effectiveBaseUrl)
-                .modelName(modelName)
-                .build();
-
+    private ReActAgent createAgent() {
         io.agentscope.core.tool.Toolkit toolkit = new io.agentscope.core.tool.Toolkit();
         toolkit.registerTool(fileSystemTools);
 
         return ReActAgent.builder()
                 .name("PipelineStepAgent")
-                .sysPrompt("你是一个任务执行助手。根据给定的指令完成特定任务，并返回执行结果。")
-                .model(model)
+                .sysPrompt("你是一个任务执行助手。根据给定的指令完成特定任务, 并返回执行结果。")
+                .model(chatModel)
                 .toolkit(toolkit)
                 .maxIters(5)
                 .build();
@@ -194,8 +178,8 @@ public class PipelinePlanExecutor {
      */
     public void cancelPlan(String planId) {
         Plan plan = runningPlans.get(planId);
-        if (plan != null && 
-            (plan.getStatus() == PlanStatus.RUNNING || plan.getStatus() == PlanStatus.PLANNING)) {
+        if (plan != null &&
+                (plan.getStatus() == PlanStatus.RUNNING || plan.getStatus() == PlanStatus.PLANNING)) {
             plan.setStatus(PlanStatus.CANCELLED);
             plan.setCompletedAt(LocalDateTime.now());
         }
