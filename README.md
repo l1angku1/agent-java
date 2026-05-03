@@ -1,6 +1,6 @@
 # agent-java
 
-基于 AgentScope 的智能代理应用，整合计划管理、知识检索和 AI 搜索能力。
+基于 AgentScope 的智能代理应用，整合计划管理、知识检索、AI 搜索和用户记忆能力。
 
 ## 功能特性
 
@@ -20,6 +20,13 @@
 - **模型重排**：大模型对召回结果进行排序评分
 - **质量评估**：大模型评估检索结果质量
 - **响应生成**：基于参考文档生成最终回答
+
+### 4. 用户记忆系统
+- **用户偏好管理**：品牌偏好、类别偏好、价格范围、关键词权重
+- **搜索记忆**：记录用户搜索历史，自动学习关键词偏好
+- **对话历史**：支持多轮对话上下文，自动定期总结
+- **记忆衰减机制**：基于时间指数衰减，访问增强重要性
+- **会话管理**：会话上下文维护，自动清理过期会话
 
 ## 技术栈
 
@@ -83,41 +90,51 @@ agent-java/
 │   ├── controller/                     # REST API 控制器
 │   │   ├── PlanController.java         # 计划管理接口
 │   │   ├── KnowledgeController.java    # 知识检索接口
-│   │   └── AISearchController.java     # AI 搜索接口
+│   │   ├── AISearchController.java     # AI 搜索接口
+│   │   └── MemoryController.java       # 记忆管理接口
 │   ├── model/                          # 数据模型
-│   │   ├── plan/                      # 计划相关模型
+│   │   ├── plan/                       # 计划相关模型
 │   │   │   ├── Plan.java
 │   │   │   ├── PlanRequest.java
 │   │   │   └── PlanStatus.java
-│   │   ├── search/                    # 搜索相关模型
+│   │   ├── search/                     # 搜索相关模型
 │   │   │   ├── SearchRequest.java
 │   │   │   ├── SearchResult.java
 │   │   │   ├── SearchDocument.java
 │   │   │   ├── QueryAnalysis.java
 │   │   │   └── EvaluationResult.java
+│   │   ├── memory/                     # 记忆相关模型
+│   │   │   ├── MemoryItem.java
+│   │   │   ├── MemoryType.java
+│   │   │   ├── UserPreference.java
+│   │   │   ├── SessionContext.java
+│   │   │   └── PreferenceUpdateRequest.java
 │   │   └── KnowledgeRequest.java
-│   ├── service/                       # 业务服务
+│   ├── service/                        # 业务服务
 │   │   ├── AIService.java              # AI 服务封装
 │   │   ├── QueryParserService.java     # 查询解析
 │   │   ├── VectorRecallService.java    # 向量召回
 │   │   ├── ModelRerankService.java     # 模型重排
 │   │   ├── ModelEvaluationService.java # 质量评估
-│   │   └── ResponseGeneratorService.java # 响应生成
-│   ├── plan/                          # 计划执行逻辑
+│   │   ├── ResponseGeneratorService.java # 响应生成
+│   │   ├── MemoryService.java           # 记忆管理
+│   │   └── ConversationSummaryService.java # 对话总结
+│   ├── plan/                           # 计划执行逻辑
 │   │   ├── PipelinePlanExecutor.java
 │   │   └── PlanGenerator.java
-│   ├── config/                        # 配置类
-│   │   ├── ModelConfig.java           # AI 模型配置
-│   │   └── OllamaConfig.java          # Ollama 配置
-│   ├── tool/                          # 工具类
+│   ├── config/                         # 配置类
+│   │   ├── ModelConfig.java            # AI 模型配置
+│   │   ├── OllamaConfig.java           # Ollama 配置
+│   │   └── MemoryConfig.java           # 记忆系统配置
+│   ├── tool/                           # 工具类
 │   │   └── FileSystemTools.java
-│   └── Application.java               # 启动类
+│   └── Application.java                # 启动类
 ├── src/main/resources/
-│   ├── skills/                        # AgentScope 技能
+│   ├── skills/                         # AgentScope 技能
 │   │   ├── retrieval-skill/
 │   │   └── skill-creator/
-│   ├── goods.csv                      # 商品数据
-│   └── application.yml                # 配置文件
+│   ├── goods.csv                       # 商品数据
+│   └── application.yml                 # 配置文件
 └── pom.xml
 ```
 
@@ -146,6 +163,17 @@ ollama:
     dimensions: 1024
 ```
 
+### 记忆系统配置
+```yaml
+ai:
+  memory:
+    enabled: true
+    default-decay-factor: 0.9
+    max-memories-per-user: 100
+    memory-expire-days: 30
+    recent-searches-limit: 10
+```
+
 | 配置项 | 说明 |
 |--------|------|
 | `api-key` | ModelScope API 密钥 |
@@ -155,6 +183,11 @@ ollama:
 | `ollama.base-url` | Ollama 服务地址 |
 | `ollama.model-name` | 向量化模型名称 |
 | `ollama.dimensions` | 向量维度 |
+| `memory.enabled` | 是否启用记忆功能 |
+| `memory.default-decay-factor` | 默认衰减因子（0-1） |
+| `memory.max-memories-per-user` | 单用户最大记忆数量 |
+| `memory.memory-expire-days` | 记忆过期天数 |
+| `memory.recent-searches-limit` | 近期搜索关键词保留数量 |
 
 ---
 

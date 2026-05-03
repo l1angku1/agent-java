@@ -30,6 +30,21 @@ public class SearchRequest {
     private boolean enableEvaluation = true;
 
     /**
+     * 用户ID（可选，用于个性化搜索）
+     */
+    private String userId;
+
+    /**
+     * 会话ID（可选，用于会话级记忆）
+     */
+    private String sessionId;
+
+    /**
+     * 是否启用记忆功能（默认启用）
+     */
+    private boolean enableMemory = true;
+
+    /**
      * 构造函数：仅包含查询内容
      */
     public SearchRequest(String query) {

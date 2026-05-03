@@ -1,9 +1,8 @@
 package com.agent.java.model.search;
 
-import com.agent.java.model.search.SearchDocument;
-import lombok.Data;
-
 import java.util.List;
+
+import lombok.Data;
 
 /**
  * AI搜索结果模型

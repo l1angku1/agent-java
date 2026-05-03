@@ -1,5 +1,6 @@
 package com.agent.java.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -11,11 +12,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.agent.java.model.memory.MemoryItem;
+import com.agent.java.model.memory.UserPreference;
 import com.agent.java.model.search.EvaluationResult;
 import com.agent.java.model.search.QueryAnalysis;
 import com.agent.java.model.search.SearchDocument;
 import com.agent.java.model.search.SearchRequest;
 import com.agent.java.model.search.SearchResult;
+import com.agent.java.service.MemoryService;
 import com.agent.java.service.ModelEvaluationService;
 import com.agent.java.service.ModelRerankService;
 import com.agent.java.service.QueryParserService;
@@ -34,17 +38,20 @@ public class AISearchController {
     private final ModelRerankService modelRerankService;
     private final ModelEvaluationService modelEvaluationService;
     private final ResponseGeneratorService responseGeneratorService;
+    private final MemoryService memoryService;
 
     public AISearchController(QueryParserService queryParserService,
             VectorRecallService vectorRecallService,
             ModelRerankService modelRerankService,
             ModelEvaluationService modelEvaluationService,
-            ResponseGeneratorService responseGeneratorService) {
+            ResponseGeneratorService responseGeneratorService,
+            MemoryService memoryService) {
         this.queryParserService = queryParserService;
         this.vectorRecallService = vectorRecallService;
         this.modelRerankService = modelRerankService;
         this.modelEvaluationService = modelEvaluationService;
         this.responseGeneratorService = responseGeneratorService;
+        this.memoryService = memoryService;
     }
 
     @PostMapping("/query")
@@ -52,14 +59,29 @@ public class AISearchController {
         log.info("AI Search request received: {}", request.getQuery());
 
         long startTime = System.currentTimeMillis();
+        boolean useMemory = request.isEnableMemory() && request.getUserId() != null;
+        boolean useContext = useMemory && request.getSessionId() != null;
+        UserPreference preference = null;
+        List<MemoryItem> conversationContext = new ArrayList<>();
+
+        if (useMemory) {
+            preference = memoryService.getUserPreference(request.getUserId());
+            log.info("Using personalized search for user: {}", request.getUserId());
+            
+            // 获取对话上下文（如果有会话ID）
+            if (useContext) {
+                conversationContext = memoryService.getConversationContext(request.getSessionId(), 5);
+                log.info("Using conversation context with {} messages", conversationContext.size());
+            }
+        }
 
         // 步骤1: 解析用户输入 - 使用大模型进行意图识别
         long parseStartTime = System.currentTimeMillis();
-        QueryAnalysis analysis = queryParserService.parse(request.getQuery());
+        QueryAnalysis analysis = parseQueryWithContext(request.getQuery(), preference, conversationContext, useContext, useMemory);
         long parseTime = System.currentTimeMillis() - parseStartTime;
         log.debug("Step 1 - Query parsing completed in {}ms", parseTime);
 
-        // 步骤2: 向量召回 - 使用大模型向量化
+        // 步骤2: 向量召回 - 使用大模型向量化（召回阶段不加入用户偏好，保持快速）
         long recallStartTime = System.currentTimeMillis();
         List<SearchDocument> recalledDocs = vectorRecallService.recall(analysis, request.getTopK());
         long recallTime = System.currentTimeMillis() - recallStartTime;
@@ -69,7 +91,9 @@ public class AISearchController {
         long rerankTime = 0;
         if (request.isEnableRerank() && !recalledDocs.isEmpty()) {
             long rerankStartTime = System.currentTimeMillis();
-            recalledDocs = modelRerankService.rerank(request.getQuery(), recalledDocs);
+            recalledDocs = useMemory
+                    ? modelRerankService.rerank(request.getQuery(), recalledDocs, preference)
+                    : modelRerankService.rerank(request.getQuery(), recalledDocs);
             rerankTime = System.currentTimeMillis() - rerankStartTime;
             log.debug("Step 3 - Model rerank completed in {}ms", rerankTime);
         }
@@ -82,6 +106,17 @@ public class AISearchController {
             long evalTime = System.currentTimeMillis() - evalStartTime;
             log.debug("Step 4 - Model evaluation completed in {}ms - Quality: {}",
                     evalTime, evaluation != null ? evaluation.getQualityLevel() : "N/A");
+        }
+
+        // 步骤5: 记录搜索记忆和对话
+        if (useMemory) {
+            memoryService.recordSearch(request.getUserId(), request.getSessionId(), request.getQuery(), analysis);
+            
+            // 记录对话到会话上下文
+            if (useContext) {
+                String responseSummary = "搜索完成，找到 " + recalledDocs.size() + " 条相关结果";
+                memoryService.addConversation(request.getSessionId(), request.getUserId(), request.getQuery(), responseSummary);
+            }
         }
 
         long totalTime = System.currentTimeMillis() - startTime;
@@ -103,7 +138,9 @@ public class AISearchController {
     @GetMapping("/ask")
     public ResponseEntity<Map<String, Object>> ask(
             @RequestParam(value = "query", defaultValue = "智能台灯有哪些功能") String query,
-            @RequestParam(value = "topK", defaultValue = "5") int topK) {
+            @RequestParam(value = "topK", defaultValue = "5") int topK,
+            @RequestParam(value = "userId", required = false) String userId,
+            @RequestParam(value = "sessionId", required = false) String sessionId) {
 
         log.info("AI Ask request: {}", query);
 
@@ -111,18 +148,26 @@ public class AISearchController {
         request.setTopK(topK);
         request.setEnableRerank(true);
         request.setEnableEvaluation(true);
+        request.setUserId(userId);
+        request.setSessionId(sessionId);
+        request.setEnableMemory(userId != null);
 
         SearchResult searchResult = search(request).getBody();
 
-        // 步骤5: 响应生成 - 使用大模型生成最终回答
-        String answer = responseGeneratorService.generate(query,
-                searchResult != null ? searchResult.getDocuments() : List.of(),
-                searchResult != null ? searchResult.getEvaluation() : null);
+        // 步骤6: 响应生成 - 使用大模型生成最终回答
+        String answer;
+        if (userId != null && searchResult != null) {
+            UserPreference preference = memoryService.getUserPreference(userId);
+            answer = responseGeneratorService.generate(query, searchResult.getDocuments(), preference);
+        } else {
+            answer = responseGeneratorService.generate(query,
+                    searchResult != null ? searchResult.getDocuments() : List.of(),
+                    searchResult != null ? searchResult.getEvaluation() : null);
+        }
 
         return ResponseEntity.ok(Map.of(
-                "query", query,
-                "answer", answer,
-                "documentCount", searchResult != null ? searchResult.getDocuments().size() : 0,
+                "query", query, "answer", answer, "documentCount",
+                searchResult != null ? searchResult.getDocuments().size() : 0,
                 "qualityLevel",
                 searchResult != null && searchResult.getEvaluation() != null
                         ? searchResult.getEvaluation().getQualityLevel()
@@ -130,7 +175,7 @@ public class AISearchController {
                 "f1Score",
                 searchResult != null && searchResult.getEvaluation() != null ? searchResult.getEvaluation().getF1Score()
                         : 0.0,
-                "totalTime", searchResult != null ? searchResult.getTotalTime() : 0));
+                "totalTime", searchResult != null ? searchResult.getTotalTime() : 0, "personalized", userId != null));
     }
 
     @GetMapping("/analyze")
@@ -140,24 +185,34 @@ public class AISearchController {
         return ResponseEntity.ok(analysis);
     }
 
+    private QueryAnalysis parseQueryWithContext(String query, UserPreference preference,
+            List<MemoryItem> conversationContext, boolean useContext, boolean useMemory) {
+        if (useContext && !conversationContext.isEmpty()) {
+            return queryParserService.parse(query, preference, conversationContext);
+        } else if (useMemory) {
+            return queryParserService.parse(query, preference);
+        } else {
+            return queryParserService.parse(query);
+        }
+    }
+
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of(
-                "status", "UP",
-                "service", "AI Search Service",
-                "documentCount", String.valueOf(vectorRecallService.getDocumentCount())));
+                "status", "UP", "service", "AI Search Service", "documentCount",
+                String.valueOf(vectorRecallService.getDocumentCount())));
     }
 
     @GetMapping("/process")
     public ResponseEntity<Map<String, Object>> getProcessInfo() {
         return ResponseEntity.ok(Map.of(
-                "process", "AI Search Pipeline",
-                "steps", List.of(
+                "process", "AI Search Pipeline", "steps", List.of(
                         Map.of("step", 1, "name", "解析用户输入", "description", "使用大模型进行意图识别和关键词提取"),
                         Map.of("step", 2, "name", "向量召回", "description", "使用大模型向量化后进行相似度匹配"),
                         Map.of("step", 3, "name", "大模型重排", "description", "使用大模型对召回结果进行排序评分"),
                         Map.of("step", 4, "name", "大模型评估", "description", "使用大模型评估检索质量"),
-                        Map.of("step", 5, "name", "响应生成", "description", "使用大模型生成最终回答")),
+                        Map.of("step", 5, "name", "记忆记录", "description", "记录用户搜索历史用于个性化推荐"),
+                        Map.of("step", 6, "name", "响应生成", "description", "使用大模型生成最终回答")),
                 "documentCount", vectorRecallService.getDocumentCount()));
     }
 
@@ -165,8 +220,7 @@ public class AISearchController {
     public ResponseEntity<Map<String, String>> reloadKnowledgeBase() {
         vectorRecallService.reloadKnowledgeBase();
         return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "documentCount", String.valueOf(vectorRecallService.getDocumentCount()),
-                "message", "Knowledge base reloaded successfully"));
+                "status", "success", "documentCount", String.valueOf(vectorRecallService.getDocumentCount()), "message",
+                "Knowledge base reloaded successfully"));
     }
 }
