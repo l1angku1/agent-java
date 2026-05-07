@@ -13,7 +13,7 @@ import java.util.Map;
 
 /**
  * 计划管理接口
- * 提供计划的创建、执行、查询等REST API
+ * 提供计划的自动生成、确认执行等REST API
  */
 @Slf4j
 @RestController
@@ -23,71 +23,6 @@ public class PlanController {
 
     private final PipelinePlanExecutor planExecutor;
     private final PlanGenerator planGenerator;
-
-    /**
-     * 创建计划（手动指定步骤）
-     */
-    @PostMapping("/create")
-    public Map<String, Object> createPlan(@RequestBody PlanRequest request) {
-        try {
-            Plan plan = planExecutor.createPlan(request);
-            return Map.of(
-                    "success", true,
-                    "planId", plan.getPlanId(),
-                    "message", "计划创建成功",
-                    "plan", plan);
-        } catch (Exception e) {
-            log.error("创建计划失败", e);
-            return Map.of("success", false, "error", e.getMessage());
-        }
-    }
-
-    /**
-     * 执行计划（同步，等待执行完成）
-     */
-    @PostMapping("/execute/{planId}")
-    public Map<String, Object> executePlan(@PathVariable String planId) {
-        try {
-            Plan plan = planExecutor.getPlan(planId);
-            if (plan == null) {
-                return Map.of("success", false, "error", "计划不存在: " + planId);
-            }
-
-            Plan executedPlan = planExecutor.executePlan(planId).block();
-            return Map.of(
-                    "success", true,
-                    "message", "计划执行完成",
-                    "plan", executedPlan);
-        } catch (Exception e) {
-            log.error("执行计划失败", e);
-            return Map.of("success", false, "error", e.getMessage());
-        }
-    }
-
-    /**
-     * 执行计划（异步，立即返回）
-     */
-    @PostMapping("/execute-async/{planId}")
-    public Map<String, Object> executePlanAsync(@PathVariable String planId) {
-        try {
-            Plan plan = planExecutor.getPlan(planId);
-            if (plan == null) {
-                return Map.of("success", false, "error", "计划不存在: " + planId);
-            }
-
-            planExecutor.executePlan(planId).subscribe(
-                    result -> log.info("计划执行完成: {}", planId),
-                    error -> log.error("计划执行失败: {}", planId, error));
-
-            return Map.of(
-                    "success", true,
-                    "message", "计划开始异步执行",
-                    "planId", planId);
-        } catch (Exception e) {
-            log.error("异步执行计划失败", e);
-            return Map.of("success", false, "error", e.getMessage());
-        }
-    }
 
     /**
      * 获取计划详情
@@ -111,20 +46,6 @@ public class PlanController {
             return Map.of("success", false, "error", "计划不存在: " + planId);
         }
         return Map.of("success", true, "steps", plan.getSteps());
-    }
-
-    /**
-     * 取消计划
-     */
-    @PostMapping("/cancel/{planId}")
-    public Map<String, Object> cancelPlan(@PathVariable String planId) {
-        try {
-            planExecutor.cancelPlan(planId);
-            return Map.of("success", true, "message", "计划已取消");
-        } catch (Exception e) {
-            log.error("取消计划失败", e);
-            return Map.of("success", false, "error", e.getMessage());
-        }
     }
 
     /**

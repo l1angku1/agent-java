@@ -22,6 +22,10 @@
 - 需要日志的类使用 `@Slf4j` 注解。
 - 需要 Builder 模式的类使用 `@Builder`、`@NoArgsConstructor`、`@AllArgsConstructor`。
 
+## 代码组织
+- 公有方法在前，私有方法在后。
+- 按构造器注入的依赖字段 -> 公有方法 -> 私有方法的顺序排列。
+
 ## 日志规范
 - Controller 层使用 `log.info` 记录请求入口和关键参数。
 - Service 层使用 `log.debug` 记录中间过程，`log.warn` 记录异常但可恢复的情况，`log.error` 记录错误。

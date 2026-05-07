@@ -23,6 +23,7 @@ import io.agentscope.core.skill.AgentSkill;
 import io.agentscope.core.skill.SkillBox;
 import io.agentscope.core.skill.repository.ClasspathSkillRepository;
 import io.agentscope.core.tool.Toolkit;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -32,54 +33,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/api/knowledge")
+@RequiredArgsConstructor
 public class KnowledgeController {
 
     private final OpenAIChatModel chatModel;
     private final FileSystemTools fileSystemTools;
-
-    /**
-     * 构造函数，注入OpenAIChatModel和FileSystemTools
-     * 
-     * @param chatModel       OpenAIChatModel实例
-     * @param fileSystemTools 文件系统工具
-     */
-    public KnowledgeController(OpenAIChatModel chatModel, FileSystemTools fileSystemTools) {
-        this.chatModel = chatModel;
-        this.fileSystemTools = fileSystemTools;
-    }
-
-    /**
-     * 创建Agent
-     * 
-     * @return ReActAgent实例
-     */
-    private ReActAgent createAgent() {
-        Toolkit toolkit = new Toolkit();
-        toolkit.registerTool(fileSystemTools);
-
-        SkillBox skillBox = new SkillBox(toolkit);
-        List<AgentSkill> skills;
-        try (ClasspathSkillRepository repository = new ClasspathSkillRepository("skills")) {
-            skills = repository.getAllSkills();
-            log.info("加载到的技能数量: {}", skills.size());
-            for (AgentSkill skill : skills) {
-                log.info("加载到的技能: {}", skill.getName());
-                skillBox.registration().skill(skill).apply();
-            }
-        } catch (IOException e) {
-            log.error("技能加载失败", e);
-            skills = Collections.emptyList();
-        }
-
-        return ReActAgent.builder()
-                .name("KnowledgeRetrievalAgent")
-                .sysPrompt(
-                        "你是一个智能助手。当用户询问任何问题时，你必须使用 retrieval-skill 来检索本地知识库中的信息，然后基于检索到的内容回答问题。如果本地知识库中没有相关内容，再基于你的知识回答。")
-                .model(chatModel)
-                .toolkit(toolkit)
-                .skillBox(skillBox)
-                .build();
-    }
 
     /**
      * 健康检查
@@ -125,5 +83,38 @@ public class KnowledgeController {
         } catch (Exception e) {
             return Map.of("answer", "出错了: " + e.getMessage());
         }
+    }
+
+    /**
+     * 创建Agent
+     * 
+     * @return ReActAgent实例
+     */
+    private ReActAgent createAgent() {
+        Toolkit toolkit = new Toolkit();
+        toolkit.registerTool(fileSystemTools);
+
+        SkillBox skillBox = new SkillBox(toolkit);
+        List<AgentSkill> skills;
+        try (ClasspathSkillRepository repository = new ClasspathSkillRepository("skills")) {
+            skills = repository.getAllSkills();
+            log.info("加载到的技能数量: {}", skills.size());
+            for (AgentSkill skill : skills) {
+                log.info("加载到的技能: {}", skill.getName());
+                skillBox.registration().skill(skill).apply();
+            }
+        } catch (IOException e) {
+            log.error("技能加载失败", e);
+            skills = Collections.emptyList();
+        }
+
+        return ReActAgent.builder()
+                .name("KnowledgeRetrievalAgent")
+                .sysPrompt(
+                        "你是一个智能助手。当用户询问任何问题时，你必须使用 retrieval-skill 来检索本地知识库中的信息，然后基于检索到的内容回答问题。如果本地知识库中没有相关内容，再基于你的知识回答。")
+                .model(chatModel)
+                .toolkit(toolkit)
+                .skillBox(skillBox)
+                .build();
     }
 }
