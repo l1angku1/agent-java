@@ -109,7 +109,10 @@ agent-java/
 │   │   │   ├── UserPreference.java
 │   │   │   ├── SessionContext.java
 │   │   │   └── PreferenceUpdateRequest.java
-│   │   └── KnowledgeRequest.java
+│   │   ├── cache/                      # 缓存相关模型
+│   │   │   └── SemanticCacheEntry.java
+│   │   └── knowledge/                  # 知识相关模型
+│   │       └── KnowledgeRequest.java
 │   ├── service/                        # 业务服务
 │   │   ├── AIService.java              # AI 服务封装
 │   │   ├── QueryParserService.java     # 查询解析
@@ -118,16 +121,20 @@ agent-java/
 │   │   ├── ModelEvaluationService.java # 质量评估
 │   │   ├── ResponseGeneratorService.java # 响应生成
 │   │   ├── MemoryService.java           # 记忆管理
-│   │   └── ConversationSummaryService.java # 对话总结
+│   │   ├── ConversationSummaryService.java # 对话总结
+│   │   └── SemanticCacheService.java   # 语义缓存服务
 │   ├── plan/                           # 计划执行逻辑
 │   │   ├── PipelinePlanExecutor.java
 │   │   └── PlanGenerator.java
 │   ├── config/                         # 配置类
 │   │   ├── ModelConfig.java            # AI 模型配置
 │   │   ├── OllamaConfig.java           # Ollama 配置
-│   │   └── MemoryConfig.java           # 记忆系统配置
+│   │   ├── MemoryConfig.java           # 记忆系统配置
+│   │   └── SemanticCacheConfig.java    # 语义缓存配置
 │   ├── tool/                           # 工具类
 │   │   └── FileSystemTools.java
+│   ├── util/                           # 通用工具
+│   │   └── JsonUtils.java
 │   └── Application.java                # 启动类
 ├── src/main/resources/
 │   ├── skills/                         # AgentScope 技能
@@ -165,13 +172,12 @@ ollama:
 
 ### 记忆系统配置
 ```yaml
-ai:
-  memory:
-    enabled: true
-    default-decay-factor: 0.9
-    max-memories-per-user: 100
-    memory-expire-days: 30
-    recent-searches-limit: 10
+memory:
+  enabled: true
+  default-decay-factor: 0.9
+  max-memories-per-user: 100
+  memory-expire-days: 30
+  recent-searches-limit: 10
 ```
 
 | 配置项 | 说明 |
@@ -183,11 +189,11 @@ ai:
 | `ollama.base-url` | Ollama 服务地址 |
 | `ollama.model-name` | 向量化模型名称 |
 | `ollama.dimensions` | 向量维度 |
-| `memory.enabled` | 是否启用记忆功能 |
-| `memory.default-decay-factor` | 默认衰减因子（0-1） |
-| `memory.max-memories-per-user` | 单用户最大记忆数量 |
-| `memory.memory-expire-days` | 记忆过期天数 |
-| `memory.recent-searches-limit` | 近期搜索关键词保留数量 |
+| `enabled` | 是否启用记忆功能 |
+| `default-decay-factor` | 默认衰减因子（0-1） |
+| `max-memories-per-user` | 单用户最大记忆数量 |
+| `memory-expire-days` | 记忆过期天数 |
+| `recent-searches-limit` | 近期搜索关键词保留数量 |
 
 ---
 

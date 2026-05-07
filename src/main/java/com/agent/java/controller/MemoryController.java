@@ -17,18 +17,20 @@ import com.agent.java.model.memory.PreferenceUpdateRequest;
 import com.agent.java.model.memory.UserPreference;
 import com.agent.java.service.MemoryService;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * 记忆管理接口
+ * 提供记忆的创建、执行、查询等REST API
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/memory")
+@RequiredArgsConstructor
 public class MemoryController {
 
     private final MemoryService memoryService;
-
-    public MemoryController(MemoryService memoryService) {
-        this.memoryService = memoryService;
-    }
 
     /**
      * 获取用户偏好

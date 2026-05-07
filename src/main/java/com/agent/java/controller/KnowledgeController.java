@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.agent.java.model.KnowledgeRequest;
+import com.agent.java.model.knowledge.KnowledgeRequest;
 import com.agent.java.tool.FileSystemTools;
 
 import io.agentscope.core.ReActAgent;

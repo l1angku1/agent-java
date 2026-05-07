@@ -10,12 +10,12 @@ import lombok.Data;
 public class EvaluationResult {
 
     /**
-     * 精确率（0-1）：检索结果中相关文档的比例
+     * 精确率（0-1）：检索结果中相关商品的比例
      */
     private double precision;
 
     /**
-     * 召回率（0-1）：查询需求被文档覆盖的程度
+     * 召回率（0-1）：查询需求被商品覆盖的程度
      */
     private double recall;
 

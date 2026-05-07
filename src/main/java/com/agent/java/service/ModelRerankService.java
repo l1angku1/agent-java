@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 模型重排服务
- * 使用大模型对召回的文档进行相关性评分和排序
+ * 使用大模型对召回的商品进行相关性评分和排序
  */
 @Slf4j
 @Service
@@ -28,30 +28,30 @@ public class ModelRerankService {
     private final ObjectMapper objectMapper;
 
     private static final String RERANK_PROMPT = """
-            请作为一个智能排序助手，对以下文档与用户查询的相关性进行评分。
+            请作为一个智能排序助手，对以下商品与用户查询的相关性进行评分。
 
             用户查询: {query}
 
-            文档列表:
+            商品列表:
             {documents}
 
             请按照以下JSON格式输出评分结果, 分数范围为0-10分:
             [
-                {"documentId": "文档ID", "score": 5.5, "reason": "评分理由"}
+                {"documentId": "商品ID", "score": 5.5, "reason": "评分理由"}
             ]
 
             评分标准:
-            - 10分: 文档内容完全匹配查询需求
-            - 8-9分: 文档内容高度相关
-            - 6-7分: 文档内容部分相关
-            - 4-5分: 文档内容有一定相关性
-            - 0-3分: 文档内容基本不相关
+            - 10分: 商品内容完全匹配查询需求
+            - 8-9分: 商品内容高度相关
+            - 6-7分: 商品内容部分相关
+            - 4-5分: 商品内容有一定相关性
+            - 0-3分: 商品内容基本不相关
 
-            请确保每个文档都有评分和理由。
+            请确保每个商品都有评分和理由。
             """;
 
     private static final String PREFERENCE_RERANK_PROMPT = """
-            请作为一个智能排序助手，对以下文档与用户查询的相关性进行评分，评分时请优先考虑用户的偏好信息。
+            请作为一个智能排序助手，对以下商品与用户查询的相关性进行评分，评分时请优先考虑用户的偏好信息。
 
             用户查询: {query}
 
@@ -61,22 +61,22 @@ public class ModelRerankService {
             - 价格范围: {priceRange}
             - 关键词偏好: {keywordWeights}
 
-            文档列表:
+            商品列表:
             {documents}
 
             请按照以下JSON格式输出评分结果, 分数范围为0-10分:
             [
-                {"documentId": "文档ID", "score": 5.5, "reason": "评分理由"}
+                {"documentId": "商品ID", "score": 5.5, "reason": "评分理由"}
             ]
 
             评分标准:
-            - 10分: 文档内容完全匹配查询需求且高度符合用户偏好
-            - 8-9分: 文档内容高度相关且符合用户偏好
-            - 6-7分: 文档内容部分相关或部分符合用户偏好
-            - 4-5分: 文档内容有一定相关性
-            - 0-3分: 文档内容基本不相关
+            - 10分: 商品内容完全匹配查询需求且高度符合用户偏好
+            - 8-9分: 商品内容高度相关且符合用户偏好
+            - 6-7分: 商品内容部分相关或部分符合用户偏好
+            - 4-5分: 商品内容有一定相关性
+            - 0-3分: 商品内容基本不相关
 
-            请确保每个文档都有评分和理由。
+            请确保每个商品都有评分和理由。
             """;
 
     /**
@@ -90,18 +90,17 @@ public class ModelRerankService {
     }
 
     /**
-     * 对文档进行重排
+     * 对商品进行重排
      * 
      * @param query     用户查询
-     * @param documents 待排序的文档列表
-     * @return 重排后的文档列表
+     * @param documents 待排序的商品列表
+     * @return 重排的商品列表
      */
     public List<SearchDocument> rerank(String query, List<SearchDocument> documents) {
         if (documents == null || documents.isEmpty()) {
             return documents;
         }
-
-        log.info("Reranking {} documents for query: {}", documents.size(), query);
+        log.info("Reranking {} goods for query: {}", documents.size(), query);
 
         String documentsStr = formatDocuments(documents);
         String prompt = RERANK_PROMPT.replace("{query}", query).replace("{documents}", documentsStr);
@@ -112,12 +111,12 @@ public class ModelRerankService {
     }
 
     /**
-     * 对文档进行重排（带用户偏好）
+     * 对商品进行重排（带用户偏好）
      * 
      * @param query     用户查询
-     * @param documents 待排序的文档列表
+     * @param documents 待排序的商品列表
      * @param preference 用户偏好
-     * @return 重排后的文档列表
+     * @return 重排后的商品列表
      */
     public List<SearchDocument> rerank(String query, List<SearchDocument> documents, UserPreference preference) {
         if (documents == null || documents.isEmpty()) {
@@ -222,9 +221,9 @@ public class ModelRerankService {
     }
 
     /**
-     * 格式化文档列表
+     * 格式化商品列表
      * 
-     * @param documents 文档列表
+     * @param documents 商品列表
      * @return 格式化后的字符串
      */
     private String formatDocuments(List<SearchDocument> documents) {
@@ -234,7 +233,7 @@ public class ModelRerankService {
             String contentPreview = doc.getContent() != null && doc.getContent().length() > 200
                     ? doc.getContent().substring(0, 200) + "..."
                     : doc.getContent();
-            sb.append(String.format("文档%d(ID:%s):\n标题: %s\n内容预览: %s\n\n",
+            sb.append(String.format("商品%d(ID:%s):\n标题: %s\n内容预览: %s\n\n",
                     i + 1, doc.getId(), doc.getTitle(), contentPreview));
         }
         return sb.toString();

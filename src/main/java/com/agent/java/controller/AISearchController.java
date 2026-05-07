@@ -24,13 +24,20 @@ import com.agent.java.service.ModelEvaluationService;
 import com.agent.java.service.ModelRerankService;
 import com.agent.java.service.QueryParserService;
 import com.agent.java.service.ResponseGeneratorService;
+import com.agent.java.service.SemanticCacheService;
 import com.agent.java.service.VectorRecallService;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * AI搜索接口
+ * 提供AI搜索的创建、执行、查询等REST API
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/ai-search")
+@RequiredArgsConstructor
 public class AISearchController {
 
     private final QueryParserService queryParserService;
@@ -39,20 +46,7 @@ public class AISearchController {
     private final ModelEvaluationService modelEvaluationService;
     private final ResponseGeneratorService responseGeneratorService;
     private final MemoryService memoryService;
-
-    public AISearchController(QueryParserService queryParserService,
-            VectorRecallService vectorRecallService,
-            ModelRerankService modelRerankService,
-            ModelEvaluationService modelEvaluationService,
-            ResponseGeneratorService responseGeneratorService,
-            MemoryService memoryService) {
-        this.queryParserService = queryParserService;
-        this.vectorRecallService = vectorRecallService;
-        this.modelRerankService = modelRerankService;
-        this.modelEvaluationService = modelEvaluationService;
-        this.responseGeneratorService = responseGeneratorService;
-        this.memoryService = memoryService;
-    }
+    private final SemanticCacheService semanticCacheService;
 
     @PostMapping("/query")
     public ResponseEntity<SearchResult> search(@RequestBody SearchRequest request) {
@@ -67,7 +61,7 @@ public class AISearchController {
         if (useMemory) {
             preference = memoryService.getUserPreference(request.getUserId());
             log.info("Using personalized search for user: {}", request.getUserId());
-            
+
             // 获取对话上下文（如果有会话ID）
             if (useContext) {
                 conversationContext = memoryService.getConversationContext(request.getSessionId(), 5);
@@ -77,7 +71,8 @@ public class AISearchController {
 
         // 步骤1: 解析用户输入 - 使用大模型进行意图识别
         long parseStartTime = System.currentTimeMillis();
-        QueryAnalysis analysis = parseQueryWithContext(request.getQuery(), preference, conversationContext, useContext, useMemory);
+        QueryAnalysis analysis = parseQueryWithContext(request.getQuery(), preference, conversationContext, useContext,
+                useMemory);
         long parseTime = System.currentTimeMillis() - parseStartTime;
         log.debug("Step 1 - Query parsing completed in {}ms", parseTime);
 
@@ -85,7 +80,7 @@ public class AISearchController {
         long recallStartTime = System.currentTimeMillis();
         List<SearchDocument> recalledDocs = vectorRecallService.recall(analysis, request.getTopK());
         long recallTime = System.currentTimeMillis() - recallStartTime;
-        log.debug("Step 2 - Vector recall completed in {}ms, found {} documents", recallTime, recalledDocs.size());
+        log.debug("Step 2 - Vector recall completed in {}ms, found {} goods", recallTime, recalledDocs.size());
 
         // 步骤3: 大模型重排
         long rerankTime = 0;
@@ -111,11 +106,12 @@ public class AISearchController {
         // 步骤5: 记录搜索记忆和对话
         if (useMemory) {
             memoryService.recordSearch(request.getUserId(), request.getSessionId(), request.getQuery(), analysis);
-            
+
             // 记录对话到会话上下文
             if (useContext) {
-                String responseSummary = "搜索完成，找到 " + recalledDocs.size() + " 条相关结果";
-                memoryService.addConversation(request.getSessionId(), request.getUserId(), request.getQuery(), responseSummary);
+                String responseSummary = "搜索完成，找到 " + recalledDocs.size() + " 条相关商品";
+                memoryService.addConversation(request.getSessionId(), request.getUserId(), request.getQuery(),
+                        responseSummary);
             }
         }
 
@@ -129,7 +125,7 @@ public class AISearchController {
         result.setRerankTime(rerankTime);
         result.setTotalTime(totalTime);
 
-        log.info("AI Search completed in {}ms - recall: {}ms, rerank: {}ms, docs: {}",
+        log.info("AI Search completed in {}ms - recall: {}ms, rerank: {}ms, goods: {}",
                 totalTime, recallTime, rerankTime, recalledDocs.size());
 
         return ResponseEntity.ok(result);
@@ -143,6 +139,21 @@ public class AISearchController {
             @RequestParam(value = "sessionId", required = false) String sessionId) {
 
         log.info("AI Ask request: {}", query);
+
+        // 检查语义缓存
+        String cachedAnswer = semanticCacheService.get(query);
+        if (cachedAnswer != null) {
+            log.info("Semantic cache hit for query: {}", query);
+                    return ResponseEntity.ok(Map.of(
+                    "query", query,
+                    "answer", cachedAnswer,
+                    "goodsCount", 0,
+                    "qualityLevel", "cached",
+                    "f1Score", 0.0,
+                    "totalTime", 0,
+                    "personalized", userId != null,
+                    "cacheHit", true));
+        }
 
         SearchRequest request = new SearchRequest(query);
         request.setTopK(topK);
@@ -165,8 +176,10 @@ public class AISearchController {
                     searchResult != null ? searchResult.getEvaluation() : null);
         }
 
+        // 存储到语义缓存
+        semanticCacheService.put(query, answer);
         return ResponseEntity.ok(Map.of(
-                "query", query, "answer", answer, "documentCount",
+                "query", query, "answer", answer, "goodsCount",
                 searchResult != null ? searchResult.getDocuments().size() : 0,
                 "qualityLevel",
                 searchResult != null && searchResult.getEvaluation() != null
@@ -175,7 +188,8 @@ public class AISearchController {
                 "f1Score",
                 searchResult != null && searchResult.getEvaluation() != null ? searchResult.getEvaluation().getF1Score()
                         : 0.0,
-                "totalTime", searchResult != null ? searchResult.getTotalTime() : 0, "personalized", userId != null));
+                "totalTime", searchResult != null ? searchResult.getTotalTime() : 0, "personalized", userId != null,
+                "cacheHit", false));
     }
 
     @GetMapping("/analyze")
@@ -199,28 +213,16 @@ public class AISearchController {
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of(
-                "status", "UP", "service", "AI Search Service", "documentCount",
-                String.valueOf(vectorRecallService.getDocumentCount())));
-    }
-
-    @GetMapping("/process")
-    public ResponseEntity<Map<String, Object>> getProcessInfo() {
-        return ResponseEntity.ok(Map.of(
-                "process", "AI Search Pipeline", "steps", List.of(
-                        Map.of("step", 1, "name", "解析用户输入", "description", "使用大模型进行意图识别和关键词提取"),
-                        Map.of("step", 2, "name", "向量召回", "description", "使用大模型向量化后进行相似度匹配"),
-                        Map.of("step", 3, "name", "大模型重排", "description", "使用大模型对召回结果进行排序评分"),
-                        Map.of("step", 4, "name", "大模型评估", "description", "使用大模型评估检索质量"),
-                        Map.of("step", 5, "name", "记忆记录", "description", "记录用户搜索历史用于个性化推荐"),
-                        Map.of("step", 6, "name", "响应生成", "description", "使用大模型生成最终回答")),
-                "documentCount", vectorRecallService.getDocumentCount()));
+                "status", "UP", "service", "AI Search Service", "goodsCount",
+                String.valueOf(vectorRecallService.getGoodsCount())));
     }
 
     @PostMapping("/reload")
-    public ResponseEntity<Map<String, String>> reloadKnowledgeBase() {
-        vectorRecallService.reloadKnowledgeBase();
+    public ResponseEntity<Map<String, String>> reloadGoods() {
+        vectorRecallService.reloadGoods();
         return ResponseEntity.ok(Map.of(
-                "status", "success", "documentCount", String.valueOf(vectorRecallService.getDocumentCount()), "message",
-                "Knowledge base reloaded successfully"));
+                "status", "success", "goodsCount", String.valueOf(vectorRecallService.getGoodsCount()),
+                "message",
+                "Goods data reloaded successfully"));
     }
 }

@@ -2,7 +2,6 @@ package com.agent.java.plan;
 
 import java.time.Duration;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.agent.java.model.plan.PlanRequest;
@@ -11,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.model.OpenAIChatModel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -20,10 +20,10 @@ import reactor.core.publisher.Mono;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class PlanGenerator {
 
-    @Autowired
-    private OpenAIChatModel chatModel;
+    private final OpenAIChatModel chatModel;
 
     /** 任务规划的Prompt模板 */
     private static final String PLANNING_PROMPT = """

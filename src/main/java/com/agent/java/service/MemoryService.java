@@ -199,7 +199,7 @@ public class MemoryService {
             memory.setType(MemoryType.SEARCH_HISTORY);
             memory.setContent(objectMapper.writeValueAsString(analysis));
             memory.setImportance(0.6);
-            memory.setDecayFactor(0.85);
+            memory.setDecayFactor(memoryConfig.getDefaultDecayFactor());
             memory.setMetadata(query);
 
             addMemory(userId, memory);
@@ -227,7 +227,7 @@ public class MemoryService {
      * </p>
      *
      * @param userId     用户ID
-     * @param documentId 文档ID
+     * @param documentId 商品ID
      * @param score      评分（0-5）
      */
     public void recordFeedback(String userId, String documentId, int score) {
@@ -242,7 +242,7 @@ public class MemoryService {
             memory.setType(MemoryType.FEEDBACK);
             memory.setContent(objectMapper.writeValueAsString(feedbackData));
             memory.setImportance(0.85);
-            memory.setDecayFactor(0.97);
+            memory.setDecayFactor(memoryConfig.getDefaultDecayFactor());
 
             addMemory(userId, memory);
             log.info("Recorded feedback for user: {}, document: {}, score: {}", userId, documentId, score);

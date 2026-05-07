@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.agent.java.model.plan.Plan;
@@ -17,6 +16,7 @@ import com.agent.java.tool.FileSystemTools;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.model.OpenAIChatModel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -26,13 +26,11 @@ import reactor.core.publisher.Mono;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class PipelinePlanExecutor {
 
-    @Autowired
-    private OpenAIChatModel chatModel;
-
-    @Autowired
-    private FileSystemTools fileSystemTools;
+    private final OpenAIChatModel chatModel;
+    private final FileSystemTools fileSystemTools;
 
     /** 正在运行的计划集合 */
     private final Map<String, Plan> runningPlans = new ConcurrentHashMap<>();

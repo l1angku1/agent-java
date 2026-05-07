@@ -15,12 +15,25 @@ import org.springframework.stereotype.Component;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 
+/**
+ * 文件系统工具类
+ * <p>
+ * 提供文件读取、目录列表、命令执行等文件系统操作功能。
+ * </p>
+ */
 @Component
 public class FileSystemTools {
 
+    /** 允许执行的命令白名单 */
     private static final Set<String> ALLOWED_COMMANDS = Set.of(
             "ls", "pwd", "cat", "grep", "find", "head", "tail", "wc", "sort", "uniq");
 
+    /**
+     * 读取文件内容
+     *
+     * @param filePath 文件路径
+     * @return 文件内容
+     */
     @Tool(name = "Read", description = "读取文件内容")
     public String readFile(
             @ToolParam(name = "file_path", description = "文件路径") String filePath) {
@@ -36,6 +49,12 @@ public class FileSystemTools {
         }
     }
 
+    /**
+     * 列出目录内容
+     *
+     * @param path 目录路径
+     * @return 目录内容列表
+     */
     @Tool(name = "LS", description = "列出目录内容")
     public String listFiles(
             @ToolParam(name = "path", description = "目录路径") String path) {
@@ -52,6 +71,13 @@ public class FileSystemTools {
         }
     }
 
+    /**
+     * 递归列出目录内容
+     *
+     * @param directory 目录对象
+     * @param prefix    路径前缀
+     * @param files     文件列表
+     */
     private void listFilesRecursive(File directory, String prefix, List<String> files) {
         File[] entries = directory.listFiles();
         if (entries != null) {
@@ -65,6 +91,12 @@ public class FileSystemTools {
         }
     }
 
+    /**
+     * 执行命令
+     *
+     * @param command 要执行的命令
+     * @return 命令输出结果
+     */
     @Tool(name = "RunCommand", description = "执行命令")
     public String runCommand(
             @ToolParam(name = "command", description = "要执行的命令") String command) {

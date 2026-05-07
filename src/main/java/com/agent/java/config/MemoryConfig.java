@@ -20,7 +20,7 @@ public class MemoryConfig {
      * 是否启用记忆功能
      * <p>默认值: true</p>
      */
-    @Value("${ai.memory.enabled:true}")
+    @Value("${memory.enabled:true}")
     private boolean enabled;
 
     /**
@@ -28,7 +28,7 @@ public class MemoryConfig {
      * <p>范围: 0.0-1.0，值越小衰减越快，值越大记忆保留时间越长</p>
      * <p>默认值: 0.9</p>
      */
-    @Value("${ai.memory.default-decay-factor:0.9}")
+    @Value("${memory.default-decay-factor:0.9}")
     private double defaultDecayFactor;
 
     /**
@@ -36,7 +36,7 @@ public class MemoryConfig {
      * <p>超过此数量时，会自动删除最旧的记忆</p>
      * <p>默认值: 100</p>
      */
-    @Value("${ai.memory.max-memories-per-user:100}")
+    @Value("${memory.max-memories-per-user:100}")
     private int maxMemoriesPerUser;
 
     /**
@@ -44,7 +44,7 @@ public class MemoryConfig {
      * <p>超过此天数的记忆会被定时任务清理</p>
      * <p>默认值: 30</p>
      */
-    @Value("${ai.memory.memory-expire-days:30}")
+    @Value("${memory.memory-expire-days:30}")
     private int memoryExpireDays;
 
     /**
@@ -52,6 +52,6 @@ public class MemoryConfig {
      * <p>用于记录用户近期搜索的关键词，用于个性化推荐</p>
      * <p>默认值: 10</p>
      */
-    @Value("${ai.memory.recent-searches-limit:10}")
+    @Value("${memory.recent-searches-limit:10}")
     private int recentSearchesLimit;
 }

@@ -5,8 +5,8 @@ import com.agent.java.model.plan.PlanRequest;
 import com.agent.java.model.plan.PlanStatus;
 import com.agent.java.plan.PipelinePlanExecutor;
 import com.agent.java.plan.PlanGenerator;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -18,13 +18,11 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/plan")
+@RequiredArgsConstructor
 public class PlanController {
 
-    @Autowired
-    private PipelinePlanExecutor planExecutor;
-
-    @Autowired
-    private PlanGenerator planGenerator;
+    private final PipelinePlanExecutor planExecutor;
+    private final PlanGenerator planGenerator;
 
     /**
      * 创建计划（手动指定步骤）

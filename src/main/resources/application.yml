@@ -1,21 +1,25 @@
+server:
+  port: 8081
+
 spring:
   application:
     name: agent-java
 
+# AI 模型配置
 ai:
   openai:
     api-key: 
     base-url: https://api-inference.modelscope.cn
-    model: ZhipuAI/GLM-5
+    model: Qwen/Qwen3.5-35B-A3B
     temperature: 0.7
-  memory:
-    enabled: true
-    default-decay-factor: 0.9
-    max-memories-per-user: 100
-    memory-expire-days: 30
 
-server:
-  port: 8081
+# 记忆系统配置
+memory:
+  enabled: true
+  default-decay-factor: 0.9
+  max-memories-per-user: 100
+  memory-expire-days: 30
+  recent-searches-limit: 10
 
 # Ollama 向量化配置
 ollama:
@@ -23,6 +27,14 @@ ollama:
     base-url: http://localhost:11434
     model-name: qwen3-embedding:0.6b
     dimensions: 1024
+
+# 语义缓存配置
+semantic:
+  cache:
+    enabled: true
+    similarity-threshold: 0.85
+    max-size: 1000
+    expire-hours: 24
 
 logging:
   level:

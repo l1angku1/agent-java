@@ -5,34 +5,34 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * 搜索文档数据模型
- * 用于存储知识库中的文档信息，包含文档的基本属性和检索评分
+ * 搜索商品数据模型
+ * 用于存储知识库中的商品信息，包含商品的基本属性和检索评分
  */
 @Data
 public class SearchDocument {
 
     /**
-     * 文档唯一标识
+     * 商品唯一标识
      */
     private String id;
 
     /**
-     * 文档标题
+     * 商品标题
      */
     private String title;
 
     /**
-     * 文档内容
+     * 商品描述
      */
     private String content;
 
     /**
-     * 文档在文件系统中的路径
+     * 商品在文件系统中的路径
      */
     private String filePath;
 
     /**
-     * 文档关键词列表（用于向量召回）
+     * 商品关键词列表（用于向量召回）
      */
     private List<String> keywords;
 
@@ -50,4 +50,9 @@ public class SearchDocument {
      * 最终综合评分（向量分数和重排分数的加权平均）
      */
     private double finalScore;
+
+    /**
+     * 是否为低质量检索结果（用于动态阈值标记）
+     */
+    private boolean lowQuality;
 }

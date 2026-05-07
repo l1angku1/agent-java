@@ -28,7 +28,7 @@ public class ModelEvaluationService {
 
             用户查询: {query}
 
-            检索到的文档(按相关性排序):
+            检索到的商品(按相关性排序):
             {documents}
 
             请按照以下JSON格式输出评估结果:
@@ -42,8 +42,8 @@ public class ModelEvaluationService {
             }
 
             评估标准:
-            - precision(精确率): 0-1, 表示检索结果中相关文档的比例
-            - recall(召回率): 0-1, 表示查询需求被文档覆盖的程度
+            - precision(精确率): 0-1, 表示检索结果中相关商品的比例
+            - recall(召回率): 0-1, 表示查询需求被商品覆盖的程度
             - f1Score: 精确率和召回率的调和平均数
             - averagePrecision(平均精确率): 综合考虑排序质量
             - qualityLevel(质量等级): 优秀/良好/一般/较差
@@ -63,7 +63,7 @@ public class ModelEvaluationService {
      * 评估检索结果质量
      * 
      * @param query     用户查询
-     * @param documents 检索到的文档列表
+     * @param documents 检索到的商品列表
      * @return 评估结果，失败时返回null
      */
     public EvaluationResult evaluate(String query, List<SearchDocument> documents) {
@@ -76,7 +76,7 @@ public class ModelEvaluationService {
             result.setF1Score(0.0);
             result.setAveragePrecision(0.0);
             result.setQualityLevel("较差");
-            result.setSuggestion("未找到相关文档，请尝试调整查询词");
+            result.setSuggestion("未找到相关商品，请尝试调整查询词");
             return result;
         }
 
@@ -98,9 +98,9 @@ public class ModelEvaluationService {
     }
 
     /**
-     * 格式化文档列表
+     * 格式化商品列表
      * 
-     * @param documents 文档列表
+     * @param documents 商品列表
      * @return 格式化后的字符串
      */
     private String formatDocuments(List<SearchDocument> documents) {
@@ -110,7 +110,7 @@ public class ModelEvaluationService {
             String contentPreview = doc.getContent() != null && doc.getContent().length() > 150
                     ? doc.getContent().substring(0, 150) + "..."
                     : doc.getContent();
-            sb.append(String.format("文档%d(评分: %.2f):\n标题: %s\n内容预览: %s\n\n",
+            sb.append(String.format("商品%d(评分: %.2f):\n标题: %s\n内容预览: %s\n\n",
                     i + 1, doc.getFinalScore(), doc.getTitle(), contentPreview));
         }
         return sb.toString();

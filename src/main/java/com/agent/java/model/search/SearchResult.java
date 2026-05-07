@@ -15,9 +15,8 @@ public class SearchResult {
      * 用户原始查询
      */
     private String query;
-
     /**
-     * 检索到的文档列表（按相关性排序）
+     * 检索到的商品列表（按相关性排序）
      */
     private List<SearchDocument> documents;
 

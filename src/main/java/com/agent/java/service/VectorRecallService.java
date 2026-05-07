@@ -15,10 +15,12 @@ import com.agent.java.model.search.SearchDocument;
 
 import io.agentscope.core.embedding.ollama.OllamaTextEmbedding;
 import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.rag.model.Document;
 import io.agentscope.core.rag.model.DocumentMetadata;
 import io.agentscope.core.rag.store.InMemoryStore;
 import io.agentscope.core.rag.store.dto.SearchDocumentDto;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -27,46 +29,41 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class VectorRecallService {
 
-    private final OllamaTextEmbedding embeddingModel;
-    private final InMemoryStore vectorStore;
     private final OllamaConfig ollamaConfig;
+    private OllamaTextEmbedding embeddingModel;
+    private InMemoryStore vectorStore;
 
-    /**
-     * 构造函数，使用配置类初始化 OllamaTextEmbedding 和 InMemoryStore
-     */
-    public VectorRecallService(OllamaConfig ollamaConfig) {
-        this.ollamaConfig = ollamaConfig;
-
+    @PostConstruct
+    public void init() {
         log.info("Initializing OllamaTextEmbedding with baseUrl={}, modelName={}, dimensions={}",
                 ollamaConfig.getBaseUrl(), ollamaConfig.getModelName(), ollamaConfig.getDimensions());
 
-        // 使用配置初始化 OllamaTextEmbedding
-        this.embeddingModel = OllamaTextEmbedding.builder()
+        // 初始化 OllamaTextEmbedding 模型
+        embeddingModel = OllamaTextEmbedding.builder()
                 .baseUrl(ollamaConfig.getBaseUrl())
                 .modelName(ollamaConfig.getModelName())
                 .dimensions(ollamaConfig.getDimensions())
                 .build();
 
-        // 使用配置的维度初始化 InMemoryStore
-        this.vectorStore = InMemoryStore.builder()
+        // 初始化 InMemoryStore
+        vectorStore = InMemoryStore.builder()
                 .dimensions(ollamaConfig.getDimensions())
                 .build();
 
         log.info("VectorRecallService initialized successfully");
-    }
 
-    @PostConstruct
-    public void init() {
-        loadGoodsData();
-        log.info("VectorRecallService post-construct completed. Loaded {} documents.", vectorStore.size());
+        // 加载商品数据
+        loadGoods();
+        log.info("VectorRecallService post-construct completed. Loaded {} goods.", vectorStore.size());
     }
 
     /**
      * 从 resources/goods.csv 文件加载商品数据
      */
-    private void loadGoodsData() {
+    private void loadGoods() {
         try (InputStream is = getClass().getResourceAsStream("/goods.csv");
                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
 
@@ -77,7 +74,7 @@ public class VectorRecallService {
 
             String line;
             boolean isFirstLine = true;
-            List<io.agentscope.core.rag.model.Document> documents = new ArrayList<>();
+            List<Document> documents = new ArrayList<>();
 
             while ((line = reader.readLine()) != null) {
                 if (isFirstLine) {
@@ -93,8 +90,7 @@ public class VectorRecallService {
                     String brand = parts[3].trim();
                     String category = parts[4].trim();
                     String price = parts[5].trim();
-
-                    // 构建文档内容
+                    // 构建商品内容
                     String content = String.format("商品ID: %s\n标题: %s\n描述: %s\n品牌: %s\n类目: %s\n价格: %s",
                             goodsId, title, description, brand, category, price);
 
@@ -112,7 +108,7 @@ public class VectorRecallService {
                             .build();
 
                     // 创建 Document
-                    io.agentscope.core.rag.model.Document doc = new io.agentscope.core.rag.model.Document(metadata);
+                    Document doc = new Document(metadata);
                     doc.setEmbedding(embedding);
 
                     documents.add(doc);
@@ -123,11 +119,11 @@ public class VectorRecallService {
             // 批量添加到向量存储
             if (!documents.isEmpty()) {
                 vectorStore.add(documents).block();
-                log.info("Successfully loaded {} goods documents", documents.size());
+                log.info("Successfully loaded {} goods", documents.size());
             }
 
         } catch (Exception e) {
-            log.error("Failed to load goods data", e);
+            log.error("Failed to load goods", e);
         }
     }
 
@@ -136,7 +132,7 @@ public class VectorRecallService {
      *
      * @param analysis 查询分析结果
      * @param topK     返回数量
-     * @return 召回的文档列表
+     * @return 召回的商品列表
      */
     public List<SearchDocument> recall(QueryAnalysis analysis, int topK) {
         String query = analysis.getRewrittenQuery() != null ? analysis.getRewrittenQuery()
@@ -156,37 +152,70 @@ public class VectorRecallService {
                 .build();
 
         // 使用 InMemoryStore 进行向量检索
-        List<io.agentscope.core.rag.model.Document> results = vectorStore.search(searchDto).block();
+        List<Document> results = vectorStore.search(searchDto).block();
 
-        // 转换为 SearchDocument 对象
+        // 转换为 SearchDocument 对象并收集所有分数
         List<SearchDocument> documents = new ArrayList<>();
+        List<Double> allScores = new ArrayList<>();
         if (results != null) {
-            for (io.agentscope.core.rag.model.Document result : results) {
+            for (Document result : results) {
                 SearchDocument doc = new SearchDocument();
                 doc.setId(result.getId());
                 doc.setTitle(result.getMetadata().getContentText());
                 doc.setContent(result.getMetadata().getContentText());
-                doc.setVectorScore(result.getScore() != null ? result.getScore() : 0.0);
+                double score = result.getScore() != null ? result.getScore() : 0.0;
+                doc.setVectorScore(score);
+                allScores.add(score);
                 documents.add(doc);
             }
         }
 
-        log.debug("Recalled {} documents for query: {}", documents.size(), query);
+        // 计算动态阈值并标记低分结果
+        double threshold = calculateDynamicThreshold(allScores, 1.5);
+        for (SearchDocument doc : documents) {
+            doc.setLowQuality(doc.getVectorScore() < threshold);
+        }
+
+        log.debug("Recalled {} goods for query: {}, dynamic threshold: {}, low quality: {}",
+                documents.stream().filter(SearchDocument::isLowQuality).count());
+
         return documents;
+    }
+
+    /**
+     * 计算动态阈值：均值 - k * 标准差
+     * 
+     * @param scores 所有召回结果的分数列表
+     * @param k      系数，通常取1.0~2.0
+     * @return 动态阈值
+     */
+    private double calculateDynamicThreshold(List<Double> scores, double k) {
+        if (scores == null || scores.isEmpty()) {
+            return 0.4;
+        }
+
+        double mean = scores.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        double variance = scores.stream()
+                .mapToDouble(s -> Math.pow(s - mean, 2))
+                .average().orElse(0.0);
+        double stdDev = Math.sqrt(variance);
+
+        double threshold = mean - k * stdDev;
+        return Math.max(threshold, 0.3);
     }
 
     /**
      * 重新加载商品数据
      */
-    public void reloadKnowledgeBase() {
+    public void reloadGoods() {
         vectorStore.clear();
-        loadGoodsData();
+        loadGoods();
     }
 
     /**
-     * 获取文档数量
+     * 获取商品数量
      */
-    public int getDocumentCount() {
+    public int getGoodsCount() {
         return vectorStore.size();
     }
 }

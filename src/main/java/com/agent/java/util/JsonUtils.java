@@ -1,7 +1,22 @@
 package com.agent.java.util;
 
+/**
+ * JSON工具类
+ * <p>
+ * 提供JSON相关的静态工具方法。
+ * </p>
+ */
 public class JsonUtils {
 
+    /**
+     * 去除Markdown代码块标记
+     * <p>
+     * 用于处理LLM返回的JSON字符串，去除```json或```等Markdown代码块标记。
+     * </p>
+     *
+     * @param text 原始文本
+     * @return 去除代码块标记后的文本
+     */
     public static String stripMarkdownCodeBlock(String text) {
         if (text == null) {
             return null;

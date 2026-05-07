@@ -1,7 +1,6 @@
 package com.agent.java.service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -14,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 响应生成服务
- * 使用大模型基于检索到的文档生成最终回答
+ * 使用大模型基于检索到的商品生成最终回答
  */
 @Slf4j
 @Service
@@ -30,7 +29,8 @@ public class ResponseGeneratorService {
             "用户问题: %s\n\n" +
             "请基于以上商品信息回答问题, 如果信息足够, 请直接给出具体的商品推荐和理由; 如果信息不足, 请用中文说明无法回答的原因。";
 
-    private static final String PREFERENCE_RESPONSE_PROMPT = "你是一个专业的商品推荐助手。请根据以下检索到的商品信息和用户偏好，用符合用户沟通风格的语言回答用户的问题。\n\n" +
+    private static final String PREFERENCE_RESPONSE_PROMPT = "你是一个专业的商品推荐助手。请根据以下检索到的商品信息和用户偏好，用符合用户沟通风格的语言回答用户的问题。\n\n"
+            +
             "用户偏好:\n" +
             "- 偏好品牌: %s\n" +
             "- 偏好类目: %s\n" +
@@ -56,7 +56,7 @@ public class ResponseGeneratorService {
      * 生成最终响应（三参数版本）
      *
      * @param query      用户查询
-     * @param documents  检索到的文档列表
+     * @param documents  检索到的商品列表
      * @param evaluation 评估结果
      * @return 生成的回答
      */
@@ -68,7 +68,7 @@ public class ResponseGeneratorService {
      * 生成最终响应
      *
      * @param query     用户查询
-     * @param documents 检索到的文档列表
+     * @param documents 检索到的商品列表
      * @return 生成的回答
      */
     public String generate(String query, List<SearchDocument> documents) {
@@ -86,8 +86,8 @@ public class ResponseGeneratorService {
     /**
      * 生成最终响应（带用户偏好）
      *
-     * @param query     用户查询
-     * @param documents 检索到的文档列表
+     * @param query      用户查询
+     * @param documents  检索到的商品列表
      * @param preference 用户偏好
      * @return 生成的回答
      */
