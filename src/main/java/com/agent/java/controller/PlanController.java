@@ -3,6 +3,8 @@ package com.agent.java.controller;
 import com.agent.java.model.plan.Plan;
 import com.agent.java.model.plan.PlanRequest;
 import com.agent.java.model.plan.PlanStatus;
+import com.agent.java.model.plan.PlanAutoRequest;
+import com.agent.java.model.plan.PlanWorkflowRequest;
 import com.agent.java.plan.PipelinePlanExecutor;
 import com.agent.java.plan.PlanGenerator;
 import lombok.RequiredArgsConstructor;
@@ -66,15 +68,16 @@ public class PlanController {
      * 全自动：用户输入 -> LLM拆解 -> 执行 -> 返回结果
      */
     @PostMapping("/auto")
-    public Map<String, Object> autoPlanAndExecute(@RequestBody Map<String, String> request) {
+    public Map<String, Object> autoPlanAndExecute(@RequestBody PlanAutoRequest request) {
         try {
-            String userRequest = request.get("request");
-            if (userRequest == null || userRequest.isBlank()) {
-                return Map.of("success", false, "error", "请求内容不能为空");
+            // 验证请求参数
+            String validationError = request.validate();
+            if (validationError != null) {
+                return Map.of("success", false, "error", validationError);
             }
 
-            log.info("开始自动生成计划: {}", userRequest);
-            PlanRequest planRequest = planGenerator.generatePlan(userRequest);
+            log.info("开始自动生成计划: {}", request.getRequest());
+            PlanRequest planRequest = planGenerator.generatePlan(request.getRequest());
             log.info("计划生成成功: {}", planRequest.getName());
 
             Plan plan = planExecutor.createPlan(planRequest);
@@ -98,15 +101,16 @@ public class PlanController {
      * 只生成计划，不执行（用于预览）
      */
     @PostMapping("/generate")
-    public Map<String, Object> generatePlanOnly(@RequestBody Map<String, String> request) {
+    public Map<String, Object> generatePlanOnly(@RequestBody PlanAutoRequest request) {
         try {
-            String userRequest = request.get("request");
-            if (userRequest == null || userRequest.isBlank()) {
-                return Map.of("success", false, "error", "请求内容不能为空");
+            // 验证请求参数
+            String validationError = request.validate();
+            if (validationError != null) {
+                return Map.of("success", false, "error", validationError);
             }
 
-            log.info("生成计划: {}", userRequest);
-            PlanRequest planRequest = planGenerator.generatePlan(userRequest);
+            log.info("生成计划: {}", request.getRequest());
+            PlanRequest planRequest = planGenerator.generatePlan(request.getRequest());
             Plan plan = planExecutor.createPlan(planRequest);
 
             return Map.of(
@@ -129,23 +133,21 @@ public class PlanController {
      * - status: 查询计划状态
      */
     @PostMapping("/workflow")
-    public Map<String, Object> planWorkflow(@RequestBody Map<String, Object> request) {
+    public Map<String, Object> planWorkflow(@RequestBody PlanWorkflowRequest request) {
         try {
-            String mode = (String) request.get("mode");
-            if (mode == null || mode.isBlank()) {
-                return Map.of("success", false, "error", "mode 参数不能为空");
+            // 验证请求参数
+            String validationError = request.validate();
+            if (validationError != null) {
+                return Map.of("success", false, "error", validationError);
             }
+
+            String mode = request.getMode();
 
             switch (mode) {
                 case "preview": {
                     // 阶段1：生成计划，状态设为 PLANNING（等待确认）
-                    String userRequest = (String) request.get("request");
-                    if (userRequest == null || userRequest.isBlank()) {
-                        return Map.of("success", false, "error", "请求内容不能为空");
-                    }
-
-                    log.info("生成计划(预览模式): {}", userRequest);
-                    PlanRequest planRequest = planGenerator.generatePlan(userRequest);
+                    log.info("生成计划(预览模式): {}", request.getRequest());
+                    PlanRequest planRequest = planGenerator.generatePlan(request.getRequest());
                     Plan plan = planExecutor.createPlan(planRequest);
                     plan.setStatus(PlanStatus.PLANNING);
 
@@ -155,17 +157,14 @@ public class PlanController {
                             "planId", plan.getPlanId(),
                             "plan", plan,
                             "steps", plan.getSteps(),
-                            "status", "pending_confirmation");
+                            "status", PlanStatus.PLANNING.name());
                 }
 
                 case "confirm": {
                     // 阶段2：确认并执行计划
-                    String planId = (String) request.get("planId");
-                    if (planId == null || planId.isBlank()) {
-                        return Map.of("success", false, "error", "planId 参数不能为空");
-                    }
-
+                    String planId = request.getPlanId();
                     Plan plan = planExecutor.getPlan(planId);
+
                     if (plan == null) {
                         return Map.of("success", false, "error", "计划不存在: " + planId);
                     }
@@ -187,12 +186,9 @@ public class PlanController {
 
                 case "cancel": {
                     // 阶段3：取消计划
-                    String planId = (String) request.get("planId");
-                    if (planId == null || planId.isBlank()) {
-                        return Map.of("success", false, "error", "planId 参数不能为空");
-                    }
-
+                    String planId = request.getPlanId();
                     Plan plan = planExecutor.getPlan(planId);
+
                     if (plan == null) {
                         return Map.of("success", false, "error", "计划不存在: " + planId);
                     }
@@ -206,17 +202,14 @@ public class PlanController {
                             "success", true,
                             "message", "计划已取消",
                             "planId", planId,
-                            "status", "cancelled");
+                            "status", PlanStatus.CANCELLED.name());
                 }
 
                 case "status": {
                     // 查询计划状态
-                    String planId = (String) request.get("planId");
-                    if (planId == null || planId.isBlank()) {
-                        return Map.of("success", false, "error", "planId 参数不能为空");
-                    }
-
+                    String planId = request.getPlanId();
                     Plan plan = planExecutor.getPlan(planId);
+
                     if (plan == null) {
                         return Map.of("success", false, "error", "计划不存在: " + planId);
                     }

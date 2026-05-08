@@ -53,4 +53,4 @@ logging:
   file:
     name: logs/agent.log
     max-size: 10MB
-    max-history: 7
+    max-history: 1

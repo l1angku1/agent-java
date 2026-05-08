@@ -6,11 +6,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.agent.java.model.knowledge.KnowledgeRequest;
@@ -40,16 +38,6 @@ public class KnowledgeController {
     private final FileSystemTools fileSystemTools;
 
     /**
-     * 健康检查
-     * 
-     * @return 状态信息
-     */
-    @GetMapping("/health")
-    public String health() {
-        return "Knowledge Retrieval Agent is running!";
-    }
-
-    /**
      * POST方式查询知识库
      * 
      * @param knowledgeRequest 查询请求
@@ -60,24 +48,6 @@ public class KnowledgeController {
         ReActAgent agent = createAgent();
         try {
             Msg request = Msg.builder().textContent(knowledgeRequest.getQuery()).build();
-            Msg response = agent.call(request).block(Duration.ofSeconds(30));
-            return Map.of("answer", response != null ? response.getTextContent() : "无回答");
-        } catch (Exception e) {
-            return Map.of("answer", "出错了: " + e.getMessage());
-        }
-    }
-
-    /**
-     * GET方式查询知识库
-     * 
-     * @param query 查询语句
-     * @return 查询结果
-     */
-    @GetMapping("/ask")
-    public Map<String, String> ask(@RequestParam(value = "query", defaultValue = "什么是 AgentScope？") String query) {
-        ReActAgent agent = createAgent();
-        try {
-            Msg request = Msg.builder().textContent(query).build();
             Msg response = agent.call(request).block(Duration.ofSeconds(30));
             return Map.of("answer", response != null ? response.getTextContent() : "无回答");
         } catch (Exception e) {

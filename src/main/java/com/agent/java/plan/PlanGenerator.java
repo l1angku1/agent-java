@@ -42,7 +42,7 @@ public class PlanGenerator {
                     },
                     {
                         "name": "步骤2名称",
-                        "instruction": "步骤2的详细指令，可以使用 {step1_result} 来引用前序步骤的结果",
+                        "instruction": "步骤2的详细指令, 可以使用 {step1_result} 来引用前序步骤的结果",
                         "outputKey": "step2_result"
                     }
                 ]
@@ -53,6 +53,7 @@ public class PlanGenerator {
             2. 步骤之间有明确的依赖关系，后续步骤可以用 {前序outputKey} 引用前序结果
             3. 通常 3-7 个步骤比较合适，复杂任务也不要超过 10 个步骤
             4. 第一步通常是信息收集或问题理解，后续步骤是分析、执行、汇总等
+            5. 如果是数学计算问题，直接生成计算步骤，不需要询问用户额外信息
 
             现在请分析以下用户需求并生成计划:
             """;

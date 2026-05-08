@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能助手 - 知识检索</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="menu-btn" id="menuBtn">☰</button>
+                <span class="header-logo">🤖</span>
+                <div>
+                    <div class="header-title">智能助手</div>
+                    <div class="header-subtitle">Agent Java</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="user-avatar">👤</div>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <nav class="sidebar-nav">
+                    <li class="nav-item active" data-route="knowledge">
+                        <span class="nav-icon">🔍</span>
+                        <span class="nav-label">知识检索</span>
+                    </li>
+                    <li class="nav-item" data-route="search">
+                        <span class="nav-icon">🔎</span>
+                        <span class="nav-label">AI搜索</span>
+                    </li>
+                    <li class="nav-item" data-route="plan">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-label">计划管理</span>
+                    </li>
+                    <li class="nav-item" data-route="memory">
+                        <span class="nav-icon">🧠</span>
+                        <span class="nav-label">记忆管理</span>
+                    </li>
+                </nav>
+            </aside>
+            
+            <!-- Page Content -->
+            <main class="page-content" id="pageContent">
+                <div class="loading"><span class="loading-spinner"></span> 加载中...</div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="/js/api.js"></script>
+    <script src="/js/store.js"></script>
+    <script src="/js/knowledge.js"></script>
+    <script src="/js/plan.js"></script>
+    <script src="/js/router.js"></script>
+    
+    <script>
+        // 页面加载完成后初始化路由
+        document.addEventListener('DOMContentLoaded', () => {
+            router.init();
+        });
+    </script>
+</body>
+</html>

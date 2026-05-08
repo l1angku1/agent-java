@@ -11,11 +11,11 @@ import com.agent.java.model.plan.Plan;
 import com.agent.java.model.plan.PlanRequest;
 import com.agent.java.model.plan.PlanRequest.StepConfig;
 import com.agent.java.model.plan.PlanStatus;
-import com.agent.java.tool.FileSystemTools;
 
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.model.OpenAIChatModel;
+import io.agentscope.core.tool.Toolkit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -30,7 +30,6 @@ import reactor.core.publisher.Mono;
 public class PipelinePlanExecutor {
 
     private final OpenAIChatModel chatModel;
-    private final FileSystemTools fileSystemTools;
 
     /** 正在运行的计划集合 */
     private final Map<String, Plan> runningPlans = new ConcurrentHashMap<>();
@@ -158,12 +157,13 @@ public class PipelinePlanExecutor {
      * 创建执行步骤的Agent
      */
     private ReActAgent createAgent() {
-        io.agentscope.core.tool.Toolkit toolkit = new io.agentscope.core.tool.Toolkit();
-        toolkit.registerTool(fileSystemTools);
+        Toolkit toolkit = new Toolkit();
 
         return ReActAgent.builder()
                 .name("PipelineStepAgent")
-                .sysPrompt("你是一个任务执行助手。根据给定的指令完成特定任务, 并返回执行结果。")
+                .sysPrompt("你是一个任务执行助手。根据给定的指令直接完成任务并返回最终结果。" +
+                        "如果是数学计算问题，直接给出计算结果。" +
+                        "不要询问用户任何问题，直接执行并返回答案。")
                 .model(chatModel)
                 .toolkit(toolkit)
                 .maxIters(5)
