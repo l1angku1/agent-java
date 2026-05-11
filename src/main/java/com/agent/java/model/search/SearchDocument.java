@@ -27,6 +27,36 @@ public class SearchDocument {
     private String content;
 
     /**
+     * 商品品牌
+     */
+    private String brand;
+
+    /**
+     * 商品类目
+     */
+    private String category;
+
+    /**
+     * 商品价格
+     */
+    private Double price;
+
+    /**
+     * 商品销量
+     */
+    private Integer salesVolume;
+
+    /**
+     * 商品转发量
+     */
+    private Integer shareCount;
+
+    /**
+     * 商品库存
+     */
+    private Integer stock;
+
+    /**
      * 商品在文件系统中的路径
      */
     private String filePath;

@@ -83,16 +83,19 @@ public class VectorRecallService {
                 }
 
                 String[] parts = line.split(",");
-                if (parts.length >= 6) {
+                if (parts.length >= 9) {
                     String goodsId = parts[0].trim();
                     String title = parts[1].trim();
                     String description = parts[2].trim();
                     String brand = parts[3].trim();
                     String category = parts[4].trim();
                     String price = parts[5].trim();
+                    String salesVolume = parts[6].trim();
+                    String shareCount = parts[7].trim();
+                    String stock = parts[8].trim();
                     // 构建商品内容
-                    String content = String.format("商品ID: %s\n标题: %s\n描述: %s\n品牌: %s\n类目: %s\n价格: %s",
-                            goodsId, title, description, brand, category, price);
+                    String content = String.format("商品ID: %s\n标题: %s\n描述: %s\n品牌: %s\n类目: %s\n价格: %s\n销量: %s\n转发量: %s\n库存: %s",
+                            goodsId, title, description, brand, category, price, salesVolume, shareCount, stock);
 
                     // 使用 TextBlock 创建内容块，然后向量化
                     TextBlock textBlock = TextBlock.builder().text(content).build();
@@ -161,8 +164,11 @@ public class VectorRecallService {
             for (Document result : results) {
                 SearchDocument doc = new SearchDocument();
                 doc.setId(result.getId());
-                doc.setTitle(result.getMetadata().getContentText());
-                doc.setContent(result.getMetadata().getContentText());
+                
+                String content = result.getMetadata().getContentText();
+                // 从content中解析商品信息
+                parseContentToDocument(doc, content);
+                
                 double score = result.getScore() != null ? result.getScore() : 0.0;
                 doc.setVectorScore(score);
                 allScores.add(score);
@@ -180,6 +186,87 @@ public class VectorRecallService {
                 documents.stream().filter(SearchDocument::isLowQuality).count());
 
         return documents;
+    }
+    
+    /**
+     * 从content中解析商品属性并设置到SearchDocument中
+     */
+    private void parseContentToDocument(SearchDocument doc, String content) {
+        if (content == null) {
+            return;
+        }
+        
+        // 解析标题
+        String title = extractValue(content, "标题:");
+        doc.setTitle(title != null ? title : "");
+        
+        // 解析描述
+        String description = extractValue(content, "描述:");
+        doc.setContent(description != null ? description : "");
+        
+        // 解析品牌
+        String brand = extractValue(content, "品牌:");
+        doc.setBrand(brand);
+        
+        // 解析类目
+        String category = extractValue(content, "类目:");
+        doc.setCategory(category);
+        
+        // 解析价格
+        String priceStr = extractValue(content, "价格:");
+        if (priceStr != null) {
+            try {
+                doc.setPrice(Double.parseDouble(priceStr.replace("¥", "").trim()));
+            } catch (NumberFormatException e) {
+                log.warn("Failed to parse price: {}", priceStr);
+            }
+        }
+        
+        // 解析销量
+        String salesVolumeStr = extractValue(content, "销量:");
+        if (salesVolumeStr != null) {
+            try {
+                doc.setSalesVolume(Integer.parseInt(salesVolumeStr.trim()));
+            } catch (NumberFormatException e) {
+                log.warn("Failed to parse salesVolume: {}", salesVolumeStr);
+            }
+        }
+        
+        // 解析转发量
+        String shareCountStr = extractValue(content, "转发量:");
+        if (shareCountStr != null) {
+            try {
+                doc.setShareCount(Integer.parseInt(shareCountStr.trim()));
+            } catch (NumberFormatException e) {
+                log.warn("Failed to parse shareCount: {}", shareCountStr);
+            }
+        }
+        
+        // 解析库存
+        String stockStr = extractValue(content, "库存:");
+        if (stockStr != null) {
+            try {
+                doc.setStock(Integer.parseInt(stockStr.trim()));
+            } catch (NumberFormatException e) {
+                log.warn("Failed to parse stock: {}", stockStr);
+            }
+        }
+    }
+    
+    /**
+     * 从content中提取指定键的值
+     */
+    private String extractValue(String content, String key) {
+        int startIndex = content.indexOf(key);
+        if (startIndex == -1) {
+            return null;
+        }
+        startIndex += key.length();
+        int endIndex = content.indexOf("\n", startIndex);
+        if (endIndex == -1) {
+            endIndex = content.length();
+        }
+        return content.substring(startIndex, endIndex).trim();
     }
 
     /**

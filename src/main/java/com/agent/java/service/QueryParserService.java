@@ -1,18 +1,21 @@
 package com.agent.java.service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
 import com.agent.java.model.memory.MemoryItem;
 import com.agent.java.model.memory.UserPreference;
 import com.agent.java.model.search.QueryAnalysis;
 import com.agent.java.util.JsonUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 查询解析服务
@@ -107,6 +110,7 @@ public class QueryParserService {
 
     /**
      * 构造函数
+     * 
      * @param aiService AI服务
      */
     public QueryParserService(AIService aiService) {
@@ -116,6 +120,7 @@ public class QueryParserService {
 
     /**
      * 解析用户查询
+     * 
      * @param query 用户查询
      * @return 查询分析结果
      */
@@ -142,7 +147,8 @@ public class QueryParserService {
 
     /**
      * 解析用户查询（带用户偏好）
-     * @param query 用户查询
+     * 
+     * @param query      用户查询
      * @param preference 用户偏好
      * @return 查询分析结果
      */
@@ -169,8 +175,9 @@ public class QueryParserService {
 
     /**
      * 解析用户查询（带用户偏好和对话上下文）
-     * @param query 用户查询
-     * @param preference 用户偏好
+     * 
+     * @param query               用户查询
+     * @param preference          用户偏好
      * @param conversationContext 对话上下文
      * @return 查询分析结果
      */
@@ -197,13 +204,15 @@ public class QueryParserService {
 
     /**
      * 解析JSON响应
+     * 
      * @param json JSON字符串
      * @return 查询分析结果
      * @throws JsonProcessingException JSON解析异常
      */
     private QueryAnalysis parseJsonResponse(String json) throws JsonProcessingException {
         String cleanJson = JsonUtils.stripMarkdownCodeBlock(json);
-        Map<String, Object> map = objectMapper.readValue(cleanJson, Map.class);
+        Map<String, Object> map = objectMapper.readValue(cleanJson, new TypeReference<Map<String, Object>>() {
+        });
 
         QueryAnalysis analysis = new QueryAnalysis();
         analysis.setOriginalQuery("");
@@ -283,12 +292,14 @@ public class QueryParserService {
 
     /**
      * 构建带对话上下文的提示词
-     * @param query 用户查询
-     * @param preference 用户偏好
+     * 
+     * @param query               用户查询
+     * @param preference          用户偏好
      * @param conversationContext 对话上下文
      * @return 提示词字符串
      */
-    private String buildContextEnhancedPrompt(String query, UserPreference preference, List<MemoryItem> conversationContext) {
+    private String buildContextEnhancedPrompt(String query, UserPreference preference,
+            List<MemoryItem> conversationContext) {
         // 构建对话历史字符串
         StringBuilder historyBuilder = new StringBuilder();
         for (MemoryItem item : conversationContext) {

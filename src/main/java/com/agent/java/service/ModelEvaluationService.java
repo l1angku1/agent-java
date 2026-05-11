@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.agent.java.model.search.EvaluationResult;
 import com.agent.java.model.search.SearchDocument;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +52,7 @@ public class ModelEvaluationService {
 
     /**
      * 构造函数
-     * 
+     *
      * @param aiService AI服务
      */
     public ModelEvaluationService(AIService aiService) {
@@ -61,7 +62,7 @@ public class ModelEvaluationService {
 
     /**
      * 评估检索结果质量
-     * 
+     *
      * @param query     用户查询
      * @param documents 检索到的商品列表
      * @return 评估结果，失败时返回null
@@ -99,7 +100,7 @@ public class ModelEvaluationService {
 
     /**
      * 格式化商品列表
-     * 
+     *
      * @param documents 商品列表
      * @return 格式化后的字符串
      */
@@ -118,14 +119,15 @@ public class ModelEvaluationService {
 
     /**
      * 解析评估响应JSON
-     * 
+     *
      * @param json JSON字符串
      * @return 评估结果
      * @throws JsonProcessingException JSON解析异常
      */
     private EvaluationResult parseEvaluationResponse(String json) throws JsonProcessingException {
         String cleanedJson = cleanJsonResponse(json);
-        Map<String, Object> map = objectMapper.readValue(cleanedJson, Map.class);
+        Map<String, Object> map = objectMapper.readValue(cleanedJson, new TypeReference<Map<String, Object>>() {
+        });
 
         EvaluationResult result = new EvaluationResult();
 
@@ -157,7 +159,7 @@ public class ModelEvaluationService {
 
     /**
      * 清理JSON响应，去除markdown代码块等
-     * 
+     *
      * @param response 原始响应
      * @return 清理后的JSON字符串
      */
@@ -188,7 +190,7 @@ public class ModelEvaluationService {
 
     /**
      * 获取double类型的值
-     * 
+     *
      * @param obj 对象
      * @return double值
      */

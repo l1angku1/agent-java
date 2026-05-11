@@ -138,36 +138,58 @@ async function loadKnowledgePage(container) {
 
 async function loadSearchPage(container) {
     container.innerHTML = `
-        <div>
-            <h2 style="margin-bottom: 20px;">🔎 AI搜索</h2>
-            <div class="input-wrapper" style="max-width: 600px; margin-bottom: 20px;">
-                <input type="text" id="searchInput" placeholder="搜索商品...">
-                <button class="send-btn" id="searchBtn">🔍</button>
+        <div class="chat-container">
+            <div class="search-settings-bar">
+                <button class="search-settings-toggle" id="searchSettingsToggle">
+                    ⚙️ 搜索设置
+                </button>
+                <div class="search-settings-panel" id="searchSettingsPanel">
+                    <div class="search-settings-grid">
+                        <div class="search-setting-item">
+                            <label class="search-setting-label">返回数量</label>
+                            <select id="searchTopK" class="search-setting-select">
+                                <option value="5">5条</option>
+                                <option value="10" selected>10条</option>
+                                <option value="20">20条</option>
+                                <option value="50">50条</option>
+                            </select>
+                        </div>
+                        <div class="search-setting-item">
+                            <label class="search-setting-label">智能重排</label>
+                            <label class="search-setting-switch">
+                                <input type="checkbox" id="searchRerank" checked>
+                                <span class="search-setting-slider"></span>
+                            </label>
+                        </div>
+                        <div class="search-setting-item">
+                            <label class="search-setting-label">质量评估</label>
+                            <label class="search-setting-switch">
+                                <input type="checkbox" id="searchEvaluation" checked>
+                                <span class="search-setting-slider"></span>
+                            </label>
+                        </div>
+                        <div class="search-setting-item">
+                            <label class="search-setting-label">用户ID</label>
+                            <input type="text" id="searchUserId" class="search-setting-input" placeholder="可选">
+                        </div>
+                        <div class="search-setting-item">
+                            <label class="search-setting-label">会话ID</label>
+                            <input type="text" id="searchSessionId" class="search-setting-input" placeholder="可选">
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div id="searchResults" class="empty-state">
-                <div class="empty-icon">🔍</div>
-                <div class="empty-title">开始搜索</div>
-                <div class="empty-desc">输入关键词搜索商品</div>
+            <div class="chat-messages" id="searchMessages"></div>
+            <div class="chat-input-area">
+                <div class="input-wrapper">
+                    <input type="text" id="searchInput" placeholder="输入搜索内容..." autocomplete="off">
+                    <button class="send-btn" id="searchSend">➤</button>
+                </div>
             </div>
         </div>
     `;
-    
-    // 设置搜索事件
-    document.getElementById('searchBtn').addEventListener('click', async () => {
-        const query = document.getElementById('searchInput').value.trim();
-        if (query) {
-            await performSearch(query);
-        }
-    });
-    
-    document.getElementById('searchInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const query = document.getElementById('searchInput').value.trim();
-            if (query) {
-                performSearch(query);
-            }
-        }
-    });
+
+    initSearchChat();
 }
 
 async function loadPlanPage(container) {
@@ -218,36 +240,6 @@ async function loadMemoryPage(container) {
     });
     
     await loadMemories();
-}
-
-// 辅助函数
-async function performSearch(query) {
-    const resultsArea = document.getElementById('searchResults');
-    resultsArea.innerHTML = '<div class="loading"><span class="loading-spinner"></span> 搜索中...</div>';
-    
-    try {
-        const result = await api.search.ask({ query });
-        store.addSearchHistory(query);
-        
-        let html = `<div class="card"><div class="card-title">💡 智能回答</div><div class="card-content">${result.answer}</div></div>`;
-        
-        if (result.goodsCount > 0) {
-            html += `<div class="card"><div class="card-title">📦 相关商品 (${result.goodsCount}件)</div><div class="card-content">已找到相关商品</div></div>`;
-        }
-        
-        html += `<div class="card"><div class="card-title">📊 搜索统计</div><div class="card-content">
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                <div>质量等级: ${result.qualityLevel}</div>
-                <div>F1分数: ${result.f1Score}</div>
-                <div>响应时间: ${result.totalTime}ms</div>
-                <div>缓存命中: ${result.cacheHit ? '是' : '否'}</div>
-            </div>
-        </div></div>`;
-        
-        resultsArea.innerHTML = html;
-    } catch (error) {
-        resultsArea.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><div class="empty-title">搜索失败</div><div class="empty-desc">' + error.message + '</div></div>';
-    }
 }
 
 async function loadPlans() {

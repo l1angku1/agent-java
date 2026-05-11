@@ -22,12 +22,12 @@ public class SearchRequest {
     /**
      * 是否启用智能重排（默认启用）
      */
-    private boolean enableRerank = true;
+    private Boolean enableRerank;
 
     /**
      * 是否启用质量评估（默认启用）
      */
-    private boolean enableEvaluation = true;
+    private Boolean enableEvaluation;
 
     /**
      * 用户ID（可选，用于个性化搜索）

@@ -26,9 +26,11 @@ const api = {
         },
         
         ask: async (params) => {
-            const url = new URL(`${API_BASE}/ai-search/ask`);
-            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-            const response = await fetch(url);
+            const response = await fetch(`${API_BASE}/ai-search/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(params)
+            });
             return response.json();
         },
         
@@ -36,11 +38,6 @@ const api = {
             const url = new URL(`${API_BASE}/ai-search/analyze`);
             url.searchParams.append('query', query);
             const response = await fetch(url);
-            return response.json();
-        },
-        
-        health: async () => {
-            const response = await fetch(`${API_BASE}/ai-search/health`);
             return response.json();
         },
         

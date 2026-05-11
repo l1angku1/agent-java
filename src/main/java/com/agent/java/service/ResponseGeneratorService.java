@@ -151,49 +151,18 @@ public class ResponseGeneratorService {
         StringBuilder goodsInfo = new StringBuilder();
         for (int i = 0; i < documents.size(); i++) {
             SearchDocument doc = documents.get(i);
-            goodsInfo.append(String.format("%d. %s\n   价格: %s\n   描述: %s\n\n",
+            // 使用解析后的属性字段，而不是从content中提取
+            String price = doc.getPrice() != null ? String.valueOf(doc.getPrice()) : "未知";
+            goodsInfo.append(String.format("%d. %s\n   价格: %s\n   描述: %s\n   销量: %d\n   转发量: %d\n   库存: %d\n\n",
                     i + 1,
-                    doc.getTitle(),
-                    extractPrice(doc.getContent()),
-                    extractDescription(doc.getContent())));
+                    doc.getTitle() != null ? doc.getTitle() : "未知",
+                    price,
+                    doc.getContent() != null ? doc.getContent() : "暂无描述",
+                    doc.getSalesVolume() != null ? doc.getSalesVolume() : 0,
+                    doc.getShareCount() != null ? doc.getShareCount() : 0,
+                    doc.getStock() != null ? doc.getStock() : 0));
         }
         return goodsInfo.toString();
     }
 
-    /**
-     * 从内容中提取价格信息
-     * 
-     * @param content 商品内容
-     * @return 价格字符串
-     */
-    private String extractPrice(String content) {
-        if (content == null)
-            return "未知";
-
-        java.util.regex.Pattern pricePattern = java.util.regex.Pattern.compile("价格: ([\\d.]+)");
-        java.util.regex.Matcher matcher = pricePattern.matcher(content);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        return "未知";
-    }
-
-    /**
-     * 从内容中提取描述信息
-     * 
-     * @param content 商品内容
-     * @return 描述字符串
-     */
-    private String extractDescription(String content) {
-        if (content == null)
-            return "暂无描述";
-
-        java.util.regex.Pattern descPattern = java.util.regex.Pattern.compile("描述: ([^\n]+)");
-        java.util.regex.Matcher matcher = descPattern.matcher(content);
-        if (matcher.find()) {
-            String desc = matcher.group(1);
-            return desc.length() > 50 ? desc.substring(0, 50) + "..." : desc;
-        }
-        return "暂无描述";
-    }
 }

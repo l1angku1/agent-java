@@ -84,7 +84,7 @@ public class AISearchController {
 
         // 步骤3: 大模型重排
         long rerankTime = 0;
-        if (request.isEnableRerank() && !recalledDocs.isEmpty()) {
+        if (Boolean.TRUE.equals(request.getEnableRerank()) && !recalledDocs.isEmpty()) {
             long rerankStartTime = System.currentTimeMillis();
             recalledDocs = useMemory
                     ? modelRerankService.rerank(request.getQuery(), recalledDocs, preference)
@@ -95,7 +95,7 @@ public class AISearchController {
 
         // 步骤4: 大模型评估
         EvaluationResult evaluation = null;
-        if (request.isEnableEvaluation()) {
+        if (Boolean.TRUE.equals(request.getEnableEvaluation())) {
             long evalStartTime = System.currentTimeMillis();
             evaluation = modelEvaluationService.evaluate(request.getQuery(), recalledDocs);
             long evalTime = System.currentTimeMillis() - evalStartTime;
@@ -131,12 +131,14 @@ public class AISearchController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/ask")
-    public ResponseEntity<Map<String, Object>> ask(
-            @RequestParam(value = "query", defaultValue = "智能台灯有哪些功能") String query,
-            @RequestParam(value = "topK", defaultValue = "5") int topK,
-            @RequestParam(value = "userId", required = false) String userId,
-            @RequestParam(value = "sessionId", required = false) String sessionId) {
+    @PostMapping("/ask")
+    public ResponseEntity<SearchResult> ask(@RequestBody SearchRequest request) {
+        String query = request.getQuery();
+        String userId = request.getUserId();
+
+        if (query == null || query.trim().isEmpty()) {
+            query = "智能台灯";
+        }
 
         log.info("AI Ask request: {}", query);
 
@@ -144,24 +146,27 @@ public class AISearchController {
         String cachedAnswer = semanticCacheService.get(query);
         if (cachedAnswer != null) {
             log.info("Semantic cache hit for query: {}", query);
-                    return ResponseEntity.ok(Map.of(
-                    "query", query,
-                    "answer", cachedAnswer,
-                    "goodsCount", 0,
-                    "qualityLevel", "cached",
-                    "f1Score", 0.0,
-                    "totalTime", 0,
-                    "personalized", userId != null,
-                    "cacheHit", true));
+            SearchResult cachedResult = new SearchResult();
+            cachedResult.setQuery(query);
+            cachedResult.setAnswer(cachedAnswer);
+            cachedResult.setGoodsCount(0);
+            cachedResult.setQualityLevel("cached");
+            cachedResult.setF1Score(0.0);
+            cachedResult.setTotalTime(0);
+            cachedResult.setPersonalized(userId != null);
+            cachedResult.setCacheHit(true);
+            return ResponseEntity.ok(cachedResult);
         }
 
-        SearchRequest request = new SearchRequest(query);
-        request.setTopK(topK);
-        request.setEnableRerank(true);
-        request.setEnableEvaluation(true);
-        request.setUserId(userId);
-        request.setSessionId(sessionId);
-        request.setEnableMemory(userId != null);
+        if (request.getEnableRerank() == null) {
+            request.setEnableRerank(true);
+        }
+        if (request.getEnableEvaluation() == null) {
+            request.setEnableEvaluation(true);
+        }
+        if (userId != null) {
+            request.setEnableMemory(true);
+        }
 
         SearchResult searchResult = search(request).getBody();
 
@@ -178,18 +183,34 @@ public class AISearchController {
 
         // 存储到语义缓存
         semanticCacheService.put(query, answer);
-        return ResponseEntity.ok(Map.of(
-                "query", query, "answer", answer, "goodsCount",
-                searchResult != null ? searchResult.getDocuments().size() : 0,
-                "qualityLevel",
-                searchResult != null && searchResult.getEvaluation() != null
-                        ? searchResult.getEvaluation().getQualityLevel()
-                        : "未知",
-                "f1Score",
-                searchResult != null && searchResult.getEvaluation() != null ? searchResult.getEvaluation().getF1Score()
-                        : 0.0,
-                "totalTime", searchResult != null ? searchResult.getTotalTime() : 0, "personalized", userId != null,
-                "cacheHit", false));
+
+        // 构建返回结果
+        SearchResult result = new SearchResult();
+        result.setQuery(query);
+        result.setAnswer(answer);
+        if (searchResult != null) {
+            result.setDocuments(searchResult.getDocuments());
+            result.setGoodsCount(searchResult.getDocuments().size());
+            result.setEvaluation(searchResult.getEvaluation());
+            result.setRecallTime(searchResult.getRecallTime());
+            result.setRerankTime(searchResult.getRerankTime());
+            result.setTotalTime(searchResult.getTotalTime());
+            if (searchResult.getEvaluation() != null) {
+                result.setQualityLevel(searchResult.getEvaluation().getQualityLevel());
+                result.setF1Score(searchResult.getEvaluation().getF1Score());
+            } else {
+                result.setQualityLevel("未知");
+                result.setF1Score(0.0);
+            }
+        } else {
+            result.setGoodsCount(0);
+            result.setQualityLevel("未知");
+            result.setF1Score(0.0);
+        }
+        result.setPersonalized(userId != null);
+        result.setCacheHit(false);
+
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/analyze")
@@ -208,13 +229,6 @@ public class AISearchController {
         } else {
             return queryParserService.parse(query);
         }
-    }
-
-    @GetMapping("/health")
-    public ResponseEntity<Map<String, String>> health() {
-        return ResponseEntity.ok(Map.of(
-                "status", "UP", "service", "AI Search Service", "goodsCount",
-                String.valueOf(vectorRecallService.getGoodsCount())));
     }
 
     @PostMapping("/reload")
