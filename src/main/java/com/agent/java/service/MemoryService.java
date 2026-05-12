@@ -27,6 +27,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -39,12 +41,18 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MemoryService {
 
     /**
      * 记忆系统配置
      */
     private final MemoryConfig memoryConfig;
+
+    /**
+     * 对话总结服务
+     */
+    private final ConversationSummaryService summaryService;
 
     /**
      * JSON序列化工具
@@ -57,7 +65,7 @@ public class MemoryService {
      * key: 用户ID, value: 记忆项列表
      * </p>
      */
-    private final ConcurrentHashMap<String, List<MemoryItem>> userMemories;
+    private ConcurrentHashMap<String, List<MemoryItem>> userMemories;
 
     /**
      * 用户偏好存储
@@ -65,7 +73,7 @@ public class MemoryService {
      * key: 用户ID, value: 用户偏好对象
      * </p>
      */
-    private final ConcurrentHashMap<String, UserPreference> userPreferences;
+    private ConcurrentHashMap<String, UserPreference> userPreferences;
 
     /**
      * 会话上下文存储（使用 Caffeine 高性能本地缓存）
@@ -76,23 +84,13 @@ public class MemoryService {
      * - 自动记录统计指标
      * </p>
      */
-    private final Cache<String, SessionContext> sessionContexts;
+    private Cache<String, SessionContext> sessionContexts;
 
     /**
-     * 对话总结服务
+     * 初始化非依赖注入的字段
      */
-    private final ConversationSummaryService summaryService;
-
-    /**
-     * 构造函数
-     *
-     * @param memoryConfig   记忆系统配置
-     * @param summaryService 对话总结服务
-     */
-    public MemoryService(MemoryConfig memoryConfig, ConversationSummaryService summaryService) {
-        this.memoryConfig = memoryConfig;
-        this.summaryService = summaryService;
-        this.objectMapper = new ObjectMapper();
+    @PostConstruct
+    public void init() {
         this.userMemories = new ConcurrentHashMap<>();
         this.userPreferences = new ConcurrentHashMap<>();
 

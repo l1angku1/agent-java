@@ -14,6 +14,7 @@ import com.agent.java.util.JsonUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ModelRerankService {
 
     private final AIService aiService;
@@ -80,16 +82,6 @@ public class ModelRerankService {
             """;
 
     /**
-     * 构造函数
-     * 
-     * @param aiService AI服务
-     */
-    public ModelRerankService(AIService aiService) {
-        this.aiService = aiService;
-        this.objectMapper = new ObjectMapper();
-    }
-
-    /**
      * 对商品进行重排
      * 
      * @param query     用户查询
@@ -113,8 +105,8 @@ public class ModelRerankService {
     /**
      * 对商品进行重排（带用户偏好）
      * 
-     * @param query     用户查询
-     * @param documents 待排序的商品列表
+     * @param query      用户查询
+     * @param documents  待排序的商品列表
      * @param preference 用户偏好
      * @return 重排后的商品列表
      */

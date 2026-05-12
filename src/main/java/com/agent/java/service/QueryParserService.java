@@ -15,6 +15,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -23,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class QueryParserService {
 
     private final AIService aiService;
@@ -159,16 +161,6 @@ public class QueryParserService {
                - 没有过滤条件时返回 null
             5. 动词不应出现在entities、keywords和rewrittenQuery中
             """;
-
-    /**
-     * 构造函数
-     * 
-     * @param aiService AI服务
-     */
-    public QueryParserService(AIService aiService) {
-        this.aiService = aiService;
-        this.objectMapper = new ObjectMapper();
-    }
 
     /**
      * 解析用户查询

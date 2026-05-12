@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.agent.java.model.memory.MemoryItem;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -19,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ConversationSummaryService {
 
     private final AIService aiService;
@@ -42,16 +44,6 @@ public class ConversationSummaryService {
 
             %s
             """;
-
-    /**
-     * 构造函数
-     *
-     * @param aiService AI服务
-     */
-    public ConversationSummaryService(AIService aiService) {
-        this.aiService = aiService;
-        log.info("ConversationSummaryService initialized");
-    }
 
     /**
      * 总结对话历史

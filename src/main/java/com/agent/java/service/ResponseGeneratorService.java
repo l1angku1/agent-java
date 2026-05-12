@@ -9,6 +9,7 @@ import com.agent.java.model.memory.UserPreference;
 import com.agent.java.model.search.EvaluationResult;
 import com.agent.java.model.search.SearchDocument;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -17,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ResponseGeneratorService {
 
     private final AIService aiService;
@@ -42,15 +44,6 @@ public class ResponseGeneratorService {
             "---\n\n" +
             "用户问题: %s\n\n" +
             "请基于以上商品信息和用户偏好回答问题，优先推荐符合用户偏好的商品。如果信息足够, 请直接给出具体的商品推荐和理由; 如果信息不足, 请用中文说明无法回答的原因。";
-
-    /**
-     * 构造函数
-     * 
-     * @param aiService AI服务
-     */
-    public ResponseGeneratorService(AIService aiService) {
-        this.aiService = aiService;
-    }
 
     /**
      * 生成最终响应（三参数版本）

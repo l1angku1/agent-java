@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.model.OpenAIChatModel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -15,18 +16,10 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AIService {
 
     private final OpenAIChatModel chatModel;
-
-    /**
-     * 构造函数，注入OpenAIChatModel
-     * 
-     * @param chatModel OpenAIChatModel实例
-     */
-    public AIService(OpenAIChatModel chatModel) {
-        this.chatModel = chatModel;
-    }
 
     /**
      * 创建Agent

@@ -24,6 +24,7 @@ import reactor.core.publisher.Mono;
 public class PlanGenerator {
 
     private final OpenAIChatModel chatModel;
+    private final ObjectMapper objectMapper;
 
     /** 任务规划的Prompt模板 */
     private static final String PLANNING_PROMPT = """
@@ -102,8 +103,7 @@ public class PlanGenerator {
     private PlanRequest parsePlanFromResponse(String content) {
         try {
             String json = extractJson(content);
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(json, PlanRequest.class);
+            return objectMapper.readValue(json, PlanRequest.class);
         } catch (Exception e) {
             log.error("解析计划JSON失败: {}", content, e);
             throw new RuntimeException("解析计划失败: " + e.getMessage(), e);

@@ -11,6 +11,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -19,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ModelEvaluationService {
 
     private final AIService aiService;
@@ -49,16 +51,6 @@ public class ModelEvaluationService {
             - averagePrecision(平均精确率): 综合考虑排序质量
             - qualityLevel(质量等级): 优秀/良好/一般/较差
             """;
-
-    /**
-     * 构造函数
-     *
-     * @param aiService AI服务
-     */
-    public ModelEvaluationService(AIService aiService) {
-        this.aiService = aiService;
-        this.objectMapper = new ObjectMapper();
-    }
 
     /**
      * 评估检索结果质量
