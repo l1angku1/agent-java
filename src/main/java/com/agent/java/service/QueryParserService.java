@@ -33,20 +33,39 @@ public class QueryParserService {
 
             用户查询: {query}
 
+            商品实体结构定义:
+            - id: 商品ID (字符串)
+            - title: 商品标题 (字符串)
+            - price: 价格 (数字, 单位: 元)
+            - stock: 库存数量 (整数)
+            - salesVolume: 销量 (整数)
+            - shareCount: 转发量 (整数)
+            - brand: 品牌 (字符串)
+            - category: 类目 (字符串)
+
             请按照以下JSON格式输出:
             {
                 "intentType": "意图类型(可选值: 问答、事实查询、对比、建议、其他)",
-                "keywords": ["关键词1", "关键词2", "关键词3"],
+                "keywords": ["名词1", "名词2"],
                 "entities": ["实体1", "实体2"],
                 "requiresContext": false,
-                "rewrittenQuery": "优化后的查询语句"
+                "rewrittenQuery": "优化后的查询语句(只包含名词, 不含动词和过滤条件)",
+                "filterExpression": "过滤条件表达式或null"
             }
 
             注意事项:
-            1. 关键词数量控制在3-5个
-            2. 实体是指查询中提到的具体事物、产品、人物等
-            3. requiresContext表示是否需要上下文理解
-            4. rewrittenQuery是对原查询的优化表述,使其更适合检索
+            1. entities(实体): 只提取查询中提到的具体事物、产品名称、类别名称等名词
+            2. keywords(关键词): 提取用于语义匹配的重要词汇, 只包含名词和形容词, 不包含动词和数值条件
+            3. rewrittenQuery: 优化后的查询语句, 只保留名词性词汇, 不含"采购"、"购买"、"需要"等动词, 不含价格、库存等条件
+            4. filterExpression: 根据查询中的数值条件生成过滤表达式, 规则如下:
+               - 使用 && 表示逻辑与, || 表示逻辑或
+               - 支持的比较运算符: ==, !=, <, <=, >, >=
+               - 使用商品实体字段名: price, stock, salesVolume, shareCount
+               - 没有过滤条件时返回 null
+               - 示例1: "price < 1000"
+               - 示例2: "price >= 500 && price < 1000 && stock > 0"
+               - 示例3: "salesVolume > 1000 || shareCount > 500"
+            5. 动词(如"采购"、"购买"、"需要"、"推荐")不应出现在entities、keywords和rewrittenQuery中
             """;
 
     private static final String PREFERENCE_ENHANCED_PROMPT = """
@@ -61,20 +80,37 @@ public class QueryParserService {
             - 近期搜索: {recentSearches}
             - 关键词偏好: {keywordWeights}
 
+            商品实体结构定义:
+            - id: 商品ID (字符串)
+            - title: 商品标题 (字符串)
+            - price: 价格 (数字, 单位: 元)
+            - stock: 库存数量 (整数)
+            - salesVolume: 销量 (整数)
+            - shareCount: 转发量 (整数)
+            - brand: 品牌 (字符串)
+            - category: 类目 (字符串)
+
             请按照以下JSON格式输出:
             {
                 "intentType": "意图类型(可选值: 问答、事实查询、对比、建议、其他)",
-                "keywords": ["关键词1", "关键词2", "关键词3"],
+                "keywords": ["名词1", "名词2"],
                 "entities": ["实体1", "实体2"],
                 "requiresContext": false,
-                "rewrittenQuery": "优化后的查询语句"
+                "rewrittenQuery": "优化后的查询语句(只包含名词, 不含动词和过滤条件)",
+                "filterExpression": "过滤条件表达式或null"
             }
 
             注意事项:
-            1. 关键词数量控制在3-5个, 优先考虑用户偏好的关键词
-            2. 实体是指查询中提到的具体事物、产品、人物等
-            3. requiresContext表示是否需要上下文理解
-            4. rewrittenQuery是对原查询的优化表述, 结合用户偏好使其更适合检索
+            1. entities(实体): 只提取查询中提到的具体事物、产品名称、类别名称等名词, 优先考虑用户偏好的类目和品牌
+            2. keywords(关键词): 提取用于语义匹配的重要词汇, 只包含名词和形容词, 优先考虑用户偏好的关键词, 不包含动词和数值条件
+            3. rewrittenQuery: 优化后的查询语句, 只保留名词性词汇, 不含"采购"、"购买"、"需要"等动词, 不含价格、库存等条件, 结合用户偏好
+            4. filterExpression: 根据查询中的数值条件生成过滤表达式, 规则如下:
+               - 使用 && 表示逻辑与, || 表示逻辑或
+               - 支持的比较运算符: ==, !=, <, <=, >, >=
+               - 使用商品实体字段名: price, stock, salesVolume, shareCount
+               - 没有过滤条件时返回 null
+               - 示例: "price >= 500 && price < 1000 && stock > 0"
+            5. 动词不应出现在entities、keywords和rewrittenQuery中
             """;
 
     private static final String CONTEXT_ENHANCED_PROMPT = """
@@ -92,20 +128,36 @@ public class QueryParserService {
             - 近期搜索: {recentSearches}
             - 关键词偏好: {keywordWeights}
 
+            商品实体结构定义:
+            - id: 商品ID (字符串)
+            - title: 商品标题 (字符串)
+            - price: 价格 (数字, 单位: 元)
+            - stock: 库存数量 (整数)
+            - salesVolume: 销量 (整数)
+            - shareCount: 转发量 (整数)
+            - brand: 品牌 (字符串)
+            - category: 类目 (字符串)
+
             请按照以下JSON格式输出:
             {
                 "intentType": "意图类型(可选值: 问答、事实查询、对比、建议、其他)",
-                "keywords": ["关键词1", "关键词2", "关键词3"],
+                "keywords": ["名词1", "名词2"],
                 "entities": ["实体1", "实体2"],
                 "requiresContext": true,
-                "rewrittenQuery": "优化后的查询语句(考虑对话上下文)"
+                "rewrittenQuery": "优化后的查询语句(只包含名词, 不含动词和过滤条件, 考虑对话上下文)",
+                "filterExpression": "过滤条件表达式或null"
             }
 
             注意事项:
-            1. 关键词数量控制在3-5个, 优先考虑用户偏好和对话上下文中的关键词
-            2. 实体是指查询中提到的具体事物、产品、人物等
-            3. requiresContext应设置为true
-            4. rewrittenQuery需要结合对话上下文进行优化, 如果用户使用代词(如"它"、"这个"、"那个"), 请解析为具体的实体
+            1. entities(实体): 只提取查询中提到的具体事物、产品名称、类别名称等名词, 优先考虑用户偏好和对话上下文中的实体
+            2. keywords(关键词): 提取用于语义匹配的重要词汇, 只包含名词和形容词, 优先考虑用户偏好和对话上下文中的关键词, 不包含动词和数值条件
+            3. rewrittenQuery: 优化后的查询语句, 只保留名词性词汇, 不含动词, 不含价格、库存等条件, 结合对话上下文和用户偏好, 如果用户使用代词(如"它"、"这个"、"那个"), 请解析为具体的实体
+            4. filterExpression: 根据查询中的数值条件生成过滤表达式, 规则如下:
+               - 使用 && 表示逻辑与, || 表示逻辑或
+               - 支持的比较运算符: ==, !=, <, <=, >, >=
+               - 使用商品实体字段名: price, stock, salesVolume, shareCount
+               - 没有过滤条件时返回 null
+            5. 动词不应出现在entities、keywords和rewrittenQuery中
             """;
 
     /**
@@ -249,6 +301,14 @@ public class QueryParserService {
 
         if (map.containsKey("rewrittenQuery")) {
             analysis.setRewrittenQuery(String.valueOf(map.get("rewrittenQuery")));
+        }
+
+        // 解析过滤条件表达式
+        if (map.containsKey("filterExpression")) {
+            Object filterExprObj = map.get("filterExpression");
+            if (filterExprObj != null && !filterExprObj.toString().equalsIgnoreCase("null")) {
+                analysis.setFilterExpression(String.valueOf(filterExprObj));
+            }
         }
 
         return analysis;

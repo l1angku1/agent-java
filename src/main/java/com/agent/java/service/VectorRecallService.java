@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -138,10 +139,22 @@ public class VectorRecallService {
      * @return 召回的商品列表
      */
     public List<SearchDocument> recall(QueryAnalysis analysis, int topK) {
-        String query = analysis.getRewrittenQuery() != null ? analysis.getRewrittenQuery()
-                : analysis.getOriginalQuery();
+        // 优先使用实体进行向量召回（实体只包含名词，不含动词和过滤条件）
+        List<String> entities = analysis.getEntities();
+        String query;
+        
+        if (entities != null && !entities.isEmpty()) {
+            // 将实体拼接成查询文本
+            query = String.join(" ", entities);
+        } else if (analysis.getRewrittenQuery() != null && !analysis.getRewrittenQuery().isEmpty()) {
+            // 如果没有实体，使用重写后的查询
+            query = analysis.getRewrittenQuery();
+        } else {
+            // 最后的备选：使用原始查询
+            query = analysis.getOriginalQuery();
+        }
 
-        log.info("Recalling for query: {}", query);
+        log.info("Recalling for query (entities-based): {}", query);
 
         // 使用 TextBlock 创建内容块，然后向量化查询
         TextBlock queryTextBlock = TextBlock.builder().text(query).build();
@@ -176,6 +189,17 @@ public class VectorRecallService {
             }
         }
 
+        // 应用 LLM 生成的过滤条件表达式
+        String filterExpr = analysis.getFilterExpression();
+        if (filterExpr != null && !filterExpr.isEmpty()) {
+            int beforeCount = documents.size();
+            documents = documents.stream()
+                    .filter(doc -> FilterExpressionParser.matches(doc, filterExpr))
+                    .collect(Collectors.toList());
+            log.info("Applied filter expression '{}', {} -> {} documents remaining", 
+                    filterExpr, beforeCount, documents.size());
+        }
+
         // 计算动态阈值并标记低分结果
         double threshold = calculateDynamicThreshold(allScores, 1.5);
         for (SearchDocument doc : documents) {
@@ -183,6 +207,7 @@ public class VectorRecallService {
         }
 
         log.debug("Recalled {} goods for query: {}, dynamic threshold: {}, low quality: {}",
+                documents.size(), query, threshold,
                 documents.stream().filter(SearchDocument::isLowQuality).count());
 
         return documents;

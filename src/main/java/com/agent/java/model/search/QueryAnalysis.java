@@ -22,12 +22,12 @@ public class QueryAnalysis {
     private String intentType;
 
     /**
-     * 提取的关键词列表（3-5个）
+     * 提取的关键词列表（3-5个，仅用于语义匹配，不含动词）
      */
     private List<String> keywords;
 
     /**
-     * 识别的实体列表（如产品、人物、地点等）
+     * 识别的实体列表（如产品、人物、地点等名词）
      */
     private List<String> entities;
 
@@ -37,7 +37,16 @@ public class QueryAnalysis {
     private boolean requiresContext;
 
     /**
-     * 优化后的查询语句（用于召回）
+     * 优化后的查询语句（用于召回，不含过滤条件和动词）
      */
     private String rewrittenQuery;
+    
+    /**
+     * LLM 生成的过滤条件表达式
+     * 格式示例: "price>=100 && price<1000 && stock>0"
+     * 支持的字段: price, stock, salesVolume, shareCount
+     * 支持的运算符: ==, !=, <, <=, >, >=
+     * 逻辑运算符: && (与), || (或)
+     */
+    private String filterExpression;
 }
