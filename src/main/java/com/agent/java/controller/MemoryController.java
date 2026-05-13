@@ -1,7 +1,6 @@
 package com.agent.java.controller;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -12,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.agent.java.model.memory.ApiResponse;
+import com.agent.java.model.memory.FeedbackRequest;
 import com.agent.java.model.memory.MemoryItem;
 import com.agent.java.model.memory.PreferenceUpdateRequest;
 import com.agent.java.model.memory.UserPreference;
@@ -46,29 +47,27 @@ public class MemoryController {
      * 更新用户偏好
      */
     @PostMapping("/preference/update")
-    public ResponseEntity<Map<String, String>> updateUserPreference(@RequestBody PreferenceUpdateRequest request) {
+    public ResponseEntity<ApiResponse> updateUserPreference(@RequestBody PreferenceUpdateRequest request) {
         log.info("Updating preference for user: {}", request.getUserId());
         memoryService.updateUserPreference(request.getUserId(), request);
-        return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "message", "Preference updated successfully"));
+        return ResponseEntity.ok(ApiResponse.builder()
+                .status("success")
+                .message("Preference updated successfully")
+                .build());
     }
 
     /**
      * 记录用户反馈
      */
     @PostMapping("/feedback")
-    public ResponseEntity<Map<String, String>> recordFeedback(@RequestBody Map<String, Object> feedbackData) {
-        String userId = (String) feedbackData.get("userId");
-        String documentId = (String) feedbackData.get("documentId");
-        Integer score = feedbackData.get("score") != null ? (Integer) feedbackData.get("score") : 0;
-
-        log.info("Recording feedback for user: {}, document: {}", userId, documentId);
-        memoryService.recordFeedback(userId, documentId, score);
-
-        return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "message", "Feedback recorded successfully"));
+    public ResponseEntity<ApiResponse> recordFeedback(@RequestBody FeedbackRequest request) {
+        log.info("Recording feedback for user: {}, document: {}", request.getUserId(), request.getDocumentId());
+        memoryService.recordFeedback(request.getUserId(), request.getDocumentId(),
+                request.getScore() != null ? request.getScore() : 0);
+        return ResponseEntity.ok(ApiResponse.builder()
+                .status("success")
+                .message("Feedback recorded successfully")
+                .build());
     }
 
     /**
@@ -85,11 +84,12 @@ public class MemoryController {
      * 清空用户记忆
      */
     @DeleteMapping("/{userId}")
-    public ResponseEntity<Map<String, String>> clearUserMemory(@PathVariable String userId) {
+    public ResponseEntity<ApiResponse> clearUserMemory(@PathVariable String userId) {
         log.info("Clearing memory for user: {}", userId);
         memoryService.clearUserMemory(userId);
-        return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "message", "Memory cleared successfully"));
+        return ResponseEntity.ok(ApiResponse.builder()
+                .status("success")
+                .message("Memory cleared successfully")
+                .build());
     }
 }

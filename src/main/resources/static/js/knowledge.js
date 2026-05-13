@@ -10,7 +10,7 @@ function initKnowledgeChat() {
     const history = store.getMessages('knowledge');
     if (history.length > 0) {
         history.forEach(msg => {
-            addMessage(msg.content, msg.isUser);
+            addMessage(msg.content, msg.isUser, msg.source);
         });
     } else {
         // 显示欢迎界面
@@ -46,12 +46,12 @@ function initKnowledgeChat() {
             // 移除打字指示器
             removeTypingIndicator();
             
-            // 添加回复消息
-            addMessage(response.answer || '抱歉，暂时无法回答您的问题。', false);
+            // 添加回复消息（包含来源信息）
+            addMessage(response.answer || '抱歉，暂时无法回答您的问题。', false, response.source);
             
             // 保存到历史记录
             store.addMessage('knowledge', { content: message, isUser: true });
-            store.addMessage('knowledge', { content: response.answer, isUser: false });
+            store.addMessage('knowledge', { content: response.answer, source: response.source, isUser: false });
             
         } catch (error) {
             removeTypingIndicator();
@@ -62,13 +62,18 @@ function initKnowledgeChat() {
         sendBtn.disabled = false;
     }
     
-    function addMessage(content, isUser) {
+    function addMessage(content, isUser, source) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
         
+        const sourceHtml = source ? `<div class="message-source">📄 来源: ${escapeHtml(source)}</div>` : '';
+        
         messageDiv.innerHTML = `
             <div class="message-avatar">${isUser ? '😊' : '🤖'}</div>
-            <div class="message-content">${renderMarkdown(content)}</div>
+            <div class="message-body">
+                <div class="message-content">${renderMarkdown(content)}</div>
+                ${sourceHtml}
+            </div>
         `;
         
         chatMessages.appendChild(messageDiv);

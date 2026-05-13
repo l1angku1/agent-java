@@ -1,17 +1,24 @@
 package com.agent.java.controller;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.agent.java.model.plan.Plan;
-import com.agent.java.model.plan.PlanRequest;
-import com.agent.java.model.plan.PlanStatus;
 import com.agent.java.model.plan.PlanAutoRequest;
+import com.agent.java.model.plan.PlanRequest;
+import com.agent.java.model.plan.PlanResponse;
+import com.agent.java.model.plan.PlanStatus;
 import com.agent.java.model.plan.PlanWorkflowRequest;
 import com.agent.java.plan.PipelinePlanExecutor;
 import com.agent.java.plan.PlanGenerator;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 /**
  * 计划管理接口
@@ -30,37 +37,37 @@ public class PlanController {
      * 获取计划详情
      */
     @GetMapping("/get/{planId}")
-    public Map<String, Object> getPlan(@PathVariable String planId) {
+    public PlanResponse getPlan(@PathVariable String planId) {
         Plan plan = planExecutor.getPlan(planId);
         if (plan == null) {
-            return Map.of("success", false, "error", "计划不存在: " + planId);
+            return PlanResponse.builder().success(false).error("计划不存在: " + planId).build();
         }
-        return Map.of("success", true, "plan", plan);
+        return PlanResponse.builder().success(true).plan(plan).build();
     }
 
     /**
      * 获取计划步骤列表
      */
     @GetMapping("/steps/{planId}")
-    public Map<String, Object> getPlanSteps(@PathVariable String planId) {
+    public PlanResponse getPlanSteps(@PathVariable String planId) {
         Plan plan = planExecutor.getPlan(planId);
         if (plan == null) {
-            return Map.of("success", false, "error", "计划不存在: " + planId);
+            return PlanResponse.builder().success(false).error("计划不存在: " + planId).build();
         }
-        return Map.of("success", true, "steps", plan.getSteps());
+        return PlanResponse.builder().success(true).steps(plan.getSteps()).build();
     }
 
     /**
      * 删除计划
      */
     @DeleteMapping("/remove/{planId}")
-    public Map<String, Object> removePlan(@PathVariable String planId) {
+    public PlanResponse removePlan(@PathVariable String planId) {
         try {
             planExecutor.removePlan(planId);
-            return Map.of("success", true, "message", "计划已删除");
+            return PlanResponse.builder().success(true).message("计划已删除").build();
         } catch (Exception e) {
             log.error("删除计划失败", e);
-            return Map.of("success", false, "error", e.getMessage());
+            return PlanResponse.builder().success(false).error(e.getMessage()).build();
         }
     }
 
@@ -68,12 +75,11 @@ public class PlanController {
      * 全自动：用户输入 -> LLM拆解 -> 执行 -> 返回结果
      */
     @PostMapping("/auto")
-    public Map<String, Object> autoPlanAndExecute(@RequestBody PlanAutoRequest request) {
+    public PlanResponse autoPlanAndExecute(@RequestBody PlanAutoRequest request) {
         try {
-            // 验证请求参数
             String validationError = request.validate();
             if (validationError != null) {
-                return Map.of("success", false, "error", validationError);
+                return PlanResponse.builder().success(false).error(validationError).build();
             }
 
             log.info("开始自动生成计划: {}", request.getRequest());
@@ -86,14 +92,14 @@ public class PlanController {
             log.info("开始执行计划: {}", planId);
             Plan executedPlan = planExecutor.executePlan(planId).block();
 
-            return Map.of(
-                    "success", true,
-                    "message", "自动计划生成并执行完成",
-                    "plan", executedPlan,
-                    "generatedPlan", planRequest);
+            return PlanResponse.builder()
+                    .success(true)
+                    .message("自动计划生成并执行完成")
+                    .plan(executedPlan)
+                    .build();
         } catch (Exception e) {
             log.error("自动计划生成执行失败", e);
-            return Map.of("success", false, "error", e.getMessage());
+            return PlanResponse.builder().success(false).error(e.getMessage()).build();
         }
     }
 
@@ -101,26 +107,25 @@ public class PlanController {
      * 只生成计划，不执行（用于预览）
      */
     @PostMapping("/generate")
-    public Map<String, Object> generatePlanOnly(@RequestBody PlanAutoRequest request) {
+    public PlanResponse generatePlanOnly(@RequestBody PlanAutoRequest request) {
         try {
-            // 验证请求参数
             String validationError = request.validate();
             if (validationError != null) {
-                return Map.of("success", false, "error", validationError);
+                return PlanResponse.builder().success(false).error(validationError).build();
             }
 
             log.info("生成计划: {}", request.getRequest());
             PlanRequest planRequest = planGenerator.generatePlan(request.getRequest());
             Plan plan = planExecutor.createPlan(planRequest);
 
-            return Map.of(
-                    "success", true,
-                    "message", "计划生成成功",
-                    "plan", plan,
-                    "planRequest", planRequest);
+            return PlanResponse.builder()
+                    .success(true)
+                    .message("计划生成成功")
+                    .plan(plan)
+                    .build();
         } catch (Exception e) {
             log.error("计划生成失败", e);
-            return Map.of("success", false, "error", e.getMessage());
+            return PlanResponse.builder().success(false).error(e.getMessage()).build();
         }
     }
 
@@ -133,100 +138,99 @@ public class PlanController {
      * - status: 查询计划状态
      */
     @PostMapping("/workflow")
-    public Map<String, Object> planWorkflow(@RequestBody PlanWorkflowRequest request) {
+    public PlanResponse planWorkflow(@RequestBody PlanWorkflowRequest request) {
         try {
-            // 验证请求参数
             String validationError = request.validate();
             if (validationError != null) {
-                return Map.of("success", false, "error", validationError);
+                return PlanResponse.builder().success(false).error(validationError).build();
             }
 
             String mode = request.getMode();
 
             switch (mode) {
                 case "preview": {
-                    // 阶段1：生成计划，状态设为 PLANNING（等待确认）
                     log.info("生成计划(预览模式): {}", request.getRequest());
                     PlanRequest planRequest = planGenerator.generatePlan(request.getRequest());
                     Plan plan = planExecutor.createPlan(planRequest);
                     plan.setStatus(PlanStatus.PLANNING);
 
-                    return Map.of(
-                            "success", true,
-                            "message", "计划已生成，请确认后执行",
-                            "planId", plan.getPlanId(),
-                            "plan", plan,
-                            "steps", plan.getSteps(),
-                            "status", PlanStatus.PLANNING.name());
+                    return PlanResponse.builder()
+                            .success(true)
+                            .message("计划已生成，请确认后执行")
+                            .planId(plan.getPlanId())
+                            .plan(plan)
+                            .steps(plan.getSteps())
+                            .status(PlanStatus.PLANNING.name())
+                            .build();
                 }
 
                 case "confirm": {
-                    // 阶段2：确认并执行计划
                     String planId = request.getPlanId();
                     Plan plan = planExecutor.getPlan(planId);
 
                     if (plan == null) {
-                        return Map.of("success", false, "error", "计划不存在: " + planId);
+                        return PlanResponse.builder().success(false).error("计划不存在: " + planId).build();
                     }
 
                     if (plan.getStatus() != PlanStatus.PLANNING) {
-                        return Map.of("success", false, "error", "当前状态不允许确认执行: " + plan.getStatus());
+                        return PlanResponse.builder().success(false).error("当前状态不允许确认执行: " + plan.getStatus()).build();
                     }
 
                     log.info("用户确认执行计划: {}", planId);
                     Plan executedPlan = planExecutor.executePlan(planId).block();
 
-                    return Map.of(
-                            "success", true,
-                            "message", "计划执行完成",
-                            "planId", planId,
-                            "plan", executedPlan,
-                            "status", executedPlan.getStatus().name());
+                    return PlanResponse.builder()
+                            .success(true)
+                            .message("计划执行完成")
+                            .planId(planId)
+                            .plan(executedPlan)
+                            .status(executedPlan.getStatus().name())
+                            .build();
                 }
 
                 case "cancel": {
-                    // 阶段3：取消计划
                     String planId = request.getPlanId();
                     Plan plan = planExecutor.getPlan(planId);
 
                     if (plan == null) {
-                        return Map.of("success", false, "error", "计划不存在: " + planId);
+                        return PlanResponse.builder().success(false).error("计划不存在: " + planId).build();
                     }
 
                     if (plan.getStatus() != PlanStatus.PLANNING) {
-                        return Map.of("success", false, "error", "只能取消待确认状态的计划: " + plan.getStatus());
+                        return PlanResponse.builder().success(false).error("只能取消待确认状态的计划: " + plan.getStatus()).build();
                     }
 
                     planExecutor.cancelPlan(planId);
-                    return Map.of(
-                            "success", true,
-                            "message", "计划已取消",
-                            "planId", planId,
-                            "status", PlanStatus.CANCELLED.name());
+                    return PlanResponse.builder()
+                            .success(true)
+                            .message("计划已取消")
+                            .planId(planId)
+                            .status(PlanStatus.CANCELLED.name())
+                            .build();
                 }
 
                 case "status": {
-                    // 查询计划状态
                     String planId = request.getPlanId();
                     Plan plan = planExecutor.getPlan(planId);
 
                     if (plan == null) {
-                        return Map.of("success", false, "error", "计划不存在: " + planId);
+                        return PlanResponse.builder().success(false).error("计划不存在: " + planId).build();
                     }
 
-                    return Map.of(
-                            "success", true,
-                            "planId", planId,
-                            "status", plan.getStatus().name(),
-                            "plan", plan);
+                    return PlanResponse.builder()
+                            .success(true)
+                            .planId(planId)
+                            .status(plan.getStatus().name())
+                            .plan(plan)
+                            .build();
                 }
 
                 default:
-                    return Map.of("success", false, "error", "无效的 mode 参数: " + mode);
+                    return PlanResponse.builder().success(false).error("无效的 mode 参数: " + mode).build();
             }
         } catch (Exception e) {
             log.error("计划工作流处理失败", e);
-            return Map.of("success", false, "error", e.getMessage());
+            return PlanResponse.builder().success(false).error(e.getMessage()).build();
         }
     }
 }

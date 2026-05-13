@@ -2,7 +2,6 @@ package com.agent.java.controller;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +15,7 @@ import com.agent.java.model.memory.MemoryItem;
 import com.agent.java.model.memory.UserPreference;
 import com.agent.java.model.search.EvaluationResult;
 import com.agent.java.model.search.QueryAnalysis;
+import com.agent.java.model.search.ReloadResponse;
 import com.agent.java.model.search.SearchDocument;
 import com.agent.java.model.search.SearchRequest;
 import com.agent.java.model.search.SearchResult;
@@ -220,6 +220,16 @@ public class AISearchController {
         return ResponseEntity.ok(analysis);
     }
 
+    @PostMapping("/reload")
+    public ResponseEntity<ReloadResponse> reloadGoods() {
+        vectorRecallService.reloadGoods();
+        return ResponseEntity.ok(ReloadResponse.builder()
+                .status("success")
+                .goodsCount(String.valueOf(vectorRecallService.getGoodsCount()))
+                .message("Goods data reloaded successfully")
+                .build());
+    }
+
     private QueryAnalysis parseQueryWithContext(String query, UserPreference preference,
             List<MemoryItem> conversationContext, boolean useContext, boolean useMemory) {
         if (useContext && !conversationContext.isEmpty()) {
@@ -229,14 +239,5 @@ public class AISearchController {
         } else {
             return queryParserService.parse(query);
         }
-    }
-
-    @PostMapping("/reload")
-    public ResponseEntity<Map<String, String>> reloadGoods() {
-        vectorRecallService.reloadGoods();
-        return ResponseEntity.ok(Map.of(
-                "status", "success", "goodsCount", String.valueOf(vectorRecallService.getGoodsCount()),
-                "message",
-                "Goods data reloaded successfully"));
     }
 }

@@ -39,7 +39,7 @@
 | 类别 | 技术 |
 |------|------|
 | 语言 | Java 21 |
-| 框架 | Spring Boot 3.5.3 |
+| 框架 | Spring Boot 4.0.1 |
 | 智能代理 | AgentScope 1.0.11 |
 | AI 模型 | 智谱AI GLM-5 |
 | 向量化 | Ollama (qwen3-embedding:0.6b) |

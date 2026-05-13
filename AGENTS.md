@@ -28,6 +28,7 @@
 ## 代码组织
 - 公有方法在前，私有方法在后。
 - 按构造器注入的依赖字段 -> 公有方法 -> 私有方法的顺序排列。
+- 方法的出入参均使用结构化的对象（DTO），坚决不使用 Map。
 
 ## 日志规范
 - Controller 层使用 `log.info` 记录请求入口和关键参数。
@@ -35,7 +36,7 @@
 - 日志占位符使用 `{}`，不使用字符串拼接。
 
 ## 技术栈
-- Java 21，Spring Boot 3.5.3，Maven 构建。
+- Java 21，Spring Boot 4.0.1，Maven 构建。
 - 使用 AgentScope 框架进行 AI Agent 开发。
 - 使用 Caffeine 作为本地缓存。
 - 使用 Jackson 进行 JSON 序列化/反序列化。
