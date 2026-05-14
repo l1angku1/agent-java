@@ -4,7 +4,8 @@ import java.time.Duration;
 
 import org.springframework.stereotype.Component;
 
-import com.agent.java.model.plan.PlanRequest;
+import com.agent.java.model.plan.Plan;
+import com.agent.java.model.plan.Step;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.agentscope.core.ReActAgent;
@@ -12,7 +13,6 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.model.OpenAIChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
 
 /**
  * 计划生成器
@@ -28,7 +28,7 @@ public class PlanGenerator {
 
     /** 任务规划的Prompt模板 */
     private static final String PLANNING_PROMPT = """
-            你是一个任务规划专家。当用户提出一个需求或问题时，你需要将其拆解成多个有序的执行步骤。
+            你是一个任务规划专家。当用户提出一个需求或问题时，你需要将其拆成多个有序的执行步骤。
 
             请按照以下JSON格式输出计划(只输出JSON, 不要其他内容):
             {
@@ -38,23 +38,36 @@ public class PlanGenerator {
                 "steps": [
                     {
                         "name": "步骤1名称",
-                        "instruction": "步骤1的详细指令, 包含该步骤需要完成的具体任务",
-                        "outputKey": "step1_result"
+                        "instruction": "步骤1的详细指令, 可以使用 {step1_result} 引用前序步骤结果",
+                        "outputKey": "step1_result",
+                        "dependsOn": null,
+                        "maxRetries": 2,
+                        "timeoutSeconds": 120,
+                        "failStrategy": "abort"
                     },
                     {
                         "name": "步骤2名称",
-                        "instruction": "步骤2的详细指令, 可以使用 {step1_result} 来引用前序步骤的结果",
-                        "outputKey": "step2_result"
+                        "instruction": "步骤2的详细指令",
+                        "outputKey": "step2_result",
+                        "dependsOn": ["step1_result"],
+                        "maxRetries": 1,
+                        "timeoutSeconds": 60,
+                        "failStrategy": "skip"
                     }
                 ]
             }
 
+            字段说明:
+            - dependsOn: 前置步骤的 outputKey 数组, 没有依赖就填 null
+            - maxRetries: 失败重试次数, 默认 2
+            - timeoutSeconds: 超时时间(秒), 默认 120
+            - failStrategy: "abort"(失败中止)或 "skip"(失败跳过)
+
             拆分原则:
-            1. 每个步骤应该是独立的、可执行的任务单元
-            2. 步骤之间有明确的依赖关系，后续步骤可以用 {前序outputKey} 引用前序结果
-            3. 通常 3-7 个步骤比较合适，复杂任务也不要超过 10 个步骤
-            4. 第一步通常是信息收集或问题理解，后续步骤是分析、执行、汇总等
-            5. 如果是数学计算问题，直接生成计算步骤，不需要询问用户额外信息
+            1. 每个步骤是独立、可执行的任务单元
+            2. 有依赖关系的步骤用 dependsOn 声明
+            3. 无依赖关系的步骤会自动并行执行
+            4. 通常 3-7 个步骤比较合适
 
             现在请分析以下用户需求并生成计划:
             """;
@@ -63,9 +76,9 @@ public class PlanGenerator {
      * 根据用户请求生成计划
      *
      * @param userRequest 用户需求
-     * @return 生成的计划请求
+     * @return 生成的计划
      */
-    public PlanRequest generatePlan(String userRequest) {
+    public Plan generatePlan(String userRequest) {
         try {
             ReActAgent agent = createAgent();
 
@@ -87,23 +100,30 @@ public class PlanGenerator {
     }
 
     /**
-     * 异步生成计划
-     */
-    public Mono<PlanRequest> generatePlanAsync(String userRequest) {
-        return Mono.fromCallable(() -> generatePlan(userRequest))
-                .onErrorResume(e -> {
-                    log.error("异步计划生成失败", e);
-                    return Mono.error(e);
-                });
-    }
-
-    /**
      * 从LLM响应中解析JSON计划
      */
-    private PlanRequest parsePlanFromResponse(String content) {
+    private Plan parsePlanFromResponse(String content) {
         try {
             String json = extractJson(content);
-            return objectMapper.readValue(json, PlanRequest.class);
+            Plan parsed = objectMapper.readValue(json, Plan.class);
+            
+            Plan plan = Plan.create(parsed.getName(), parsed.getDescription(), parsed.getOriginalRequest());
+            
+            if (parsed.getSteps() != null) {
+                for (Step step : parsed.getSteps()) {
+                    plan.addStep(
+                        step.getName(),
+                        step.getInstruction(),
+                        step.getOutputKey(),
+                        step.getDependsOn(),
+                        step.getMaxRetries(),
+                        step.getTimeoutSeconds(),
+                        step.getFailStrategy()
+                    );
+                }
+            }
+            
+            return plan;
         } catch (Exception e) {
             log.error("解析计划JSON失败: {}", content, e);
             throw new RuntimeException("解析计划失败: " + e.getMessage(), e);

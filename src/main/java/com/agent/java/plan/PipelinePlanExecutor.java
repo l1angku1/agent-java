@@ -2,15 +2,20 @@ package com.agent.java.plan;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
 
 import org.springframework.stereotype.Component;
 
 import com.agent.java.model.plan.Plan;
-import com.agent.java.model.plan.PlanRequest;
-import com.agent.java.model.plan.PlanRequest.StepConfig;
 import com.agent.java.model.plan.PlanStatus;
+import com.agent.java.model.plan.Step;
 
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
@@ -18,11 +23,13 @@ import io.agentscope.core.model.OpenAIChatModel;
 import io.agentscope.core.tool.Toolkit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
 
 /**
  * Pipeline计划执行器
- * 负责按顺序执行计划中的各个步骤
+ * 支持：
+ * - 依赖分析与并行执行
+ * - 失败重试与超时控制
+ * - 灵活的失败策略
  */
 @Slf4j
 @Component
@@ -30,18 +37,30 @@ import reactor.core.publisher.Mono;
 public class PipelinePlanExecutor {
 
     private final OpenAIChatModel chatModel;
+    private final DependencyAnalyzer dependencyAnalyzer;
 
     /** 正在运行的计划集合 */
     private final Map<String, Plan> runningPlans = new ConcurrentHashMap<>();
 
     /**
-     * 根据请求创建计划
+     * 保存计划（注册到执行器）
      */
-    public Plan createPlan(PlanRequest request) {
-        Plan plan = Plan.create(request.getName(), request.getDescription(), request.getOriginalRequest());
-
-        for (StepConfig stepConfig : request.getSteps()) {
-            plan.addStep(stepConfig.getName(), stepConfig.getInstruction(), stepConfig.getOutputKey());
+    public Plan createPlan(Plan plan) {
+        // 初始化必要字段
+        if (plan.getPlanId() == null) {
+            plan.setPlanId(UUID.randomUUID().toString().replace("-", ""));
+        }
+        if (plan.getStatus() == null) {
+            plan.setStatus(PlanStatus.CREATED);
+        }
+        if (plan.getContext() == null) {
+            plan.setContext(new HashMap<>());
+        }
+        if (plan.getCreatedAt() == null) {
+            plan.setCreatedAt(LocalDateTime.now());
+        }
+        if (plan.getSteps() == null) {
+            plan.setSteps(new ArrayList<>());
         }
 
         runningPlans.put(plan.getPlanId(), plan);
@@ -58,68 +77,146 @@ public class PipelinePlanExecutor {
     /**
      * 执行计划，按顺序执行每个步骤，返回最终执行完成的计划
      */
-    public Mono<Plan> executePlan(String planId) {
+    public Plan executePlan(String planId) {
         Plan plan = runningPlans.get(planId);
         if (plan == null) {
-            return Mono.error(new IllegalArgumentException("Plan not found: " + planId));
+            throw new IllegalArgumentException("Plan not found: " + planId);
         }
 
         plan.setStatus(PlanStatus.RUNNING);
         plan.setStartedAt(LocalDateTime.now());
 
-        return executeSteps(plan)
-                .then(Mono.fromCallable(() -> {
-                    plan.setStatus(PlanStatus.COMPLETED);
-                    plan.setCompletedAt(LocalDateTime.now());
-                    return plan;
-                }))
-                .onErrorResume(e -> {
-                    log.error("Plan execution failed", e);
-                    plan.setStatus(PlanStatus.FAILED);
-                    plan.setErrorMessage(e.getMessage());
-                    plan.setCompletedAt(LocalDateTime.now());
-                    return Mono.just(plan);
-                });
-    }
+        try {
+            List<DependencyAnalyzer.StepGroup> groups = dependencyAnalyzer.analyze(plan.getSteps());
+            log.info("计划 {} 分析完成, 共 {} 个执行组", planId, groups.size());
 
-    /**
-     * 顺序执行所有步骤
-     */
-    private Mono<Void> executeSteps(Plan plan) {
-        Mono<Void> result = Mono.empty();
-        for (Plan.Step step : plan.getSteps()) {
-            result = result.then(executeStep(plan, step));
+            for (int i = 0; i < groups.size(); i++) {
+                DependencyAnalyzer.StepGroup group = groups.get(i);
+                log.info("执行第 {}/{} 组, 并行: {}, 步骤数: {}",
+                        i + 1, groups.size(), group.isParallel(), group.getSteps().size());
+
+                executeStepGroup(plan, group);
+            }
+
+            plan.setStatus(PlanStatus.COMPLETED);
+            plan.setCompletedAt(LocalDateTime.now());
+        } catch (Exception e) {
+            log.error("Plan execution failed", e);
+            plan.setStatus(PlanStatus.FAILED);
+            plan.setErrorMessage(e.getMessage());
+            plan.setCompletedAt(LocalDateTime.now());
         }
-        return result;
+
+        return plan;
     }
 
     /**
-     * 执行单个步骤
+     * 执行步骤组
      */
-    private Mono<Void> executeStep(Plan plan, Plan.Step step) {
+    private void executeStepGroup(Plan plan, DependencyAnalyzer.StepGroup group) {
+        if (group.isParallel()) {
+            executeParallel(plan, group.getSteps());
+        } else {
+            for (Step step : group.getSteps()) {
+                executeSingleStep(plan, step);
+            }
+        }
+    }
+
+    /**
+     * 并行执行步骤组（使用CompletableFuture）
+     */
+    private void executeParallel(Plan plan, List<Step> steps) {
+        List<CompletableFuture<Void>> futures = steps.stream()
+                .map(step -> CompletableFuture.runAsync(() -> executeSingleStep(plan, step)))
+                .toList();
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+    }
+
+    /**
+     * 执行单个步骤（含重试、超时）
+     */
+    private void executeSingleStep(Plan plan, Step step) {
         step.setStartTime(LocalDateTime.now());
 
         String instruction = buildInstruction(plan, step);
+        int maxRetries = step.getMaxRetries();
+        long timeoutSeconds = step.getTimeoutSeconds();
+        String failStrategy = step.getFailStrategy();
 
-        return callAgent(instruction)
-                .doOnSuccess(result -> {
-                    step.setResult(result);
-                    step.setEndTime(LocalDateTime.now());
+        Exception lastException = null;
+
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            if (attempt > 0) {
+                log.info("步骤 {} 重试 {}/{}", step.getName(), attempt, maxRetries);
+            }
+
+            try {
+                String result = executeStepWithTimeout(instruction, timeoutSeconds);
+                step.setResult(result);
+                step.setEndTime(LocalDateTime.now());
+
+                if (step.getOutputKey() != null) {
                     plan.getContext().put(step.getOutputKey(), result);
-                    plan.getContext().put("last_result", result);
-                })
-                .doOnError(e -> {
-                    log.error("Step execution failed: {}", step.getName(), e);
-                    step.setResult("Error: " + e.getMessage());
-                    step.setEndTime(LocalDateTime.now());
-                })
-                .then();
+                }
+                plan.getContext().put("last_result", result);
+
+                log.info("步骤 {} 执行成功, 耗时 {}s", step.getName(), step.getDurationSeconds());
+                return;
+
+            } catch (TimeoutException e) {
+                log.error("步骤 {} 执行超时 ({}/{}s)", step.getName(), attempt + 1, maxRetries);
+                lastException = e;
+            } catch (Exception e) {
+                log.error("步骤 {} 执行失败 ({}/{})", step.getName(), attempt + 1, maxRetries + 1, e);
+                lastException = e;
+            }
+        }
+
+        handleStepFailure(plan, step, lastException, failStrategy);
+    }
+
+    /**
+     * 带超时执行步骤（使用CompletableFuture）
+     */
+    private String executeStepWithTimeout(String instruction, long timeoutSeconds)
+            throws Exception {
+        CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> callAgent(instruction));
+        try {
+            return future.get(timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw e;
+        }
+    }
+
+    /**
+     * 处理步骤失败
+     */
+    private void handleStepFailure(Plan plan, Step step, Exception e, String failStrategy) {
+        step.setResult("ERROR: " + e.getMessage());
+        step.setEndTime(LocalDateTime.now());
+
+        switch (failStrategy != null ? failStrategy : "abort") {
+            case "skip":
+                log.warn("步骤 {} 执行失败, 按策略跳过", step.getName());
+                break;
+            case "abort":
+                log.error("步骤 {} 执行失败, 按策略中止计划", step.getName());
+                throw new RuntimeException("Step failed: " + step.getName(), e);
+            case "fallback":
+                log.warn("步骤 {} 执行失败, fallback 策略暂未实现, 按 skip 处理", step.getName());
+                break;
+            default:
+                throw new RuntimeException("Step failed: " + step.getName(), e);
+        }
     }
 
     /**
      * 构建步骤指令，替换{key}占位符为实际值
      */
-    private String buildInstruction(Plan plan, Plan.Step step) {
+    private String buildInstruction(Plan plan, Step step) {
         String instruction = step.getInstruction();
         for (Map.Entry<String, Object> entry : plan.getContext().entrySet()) {
             String placeholder = "{" + entry.getKey() + "}";
@@ -133,24 +230,20 @@ public class PipelinePlanExecutor {
     /**
      * 调用Agent执行指令
      */
-    private Mono<String> callAgent(String instruction) {
-        return Mono.create(emitter -> {
-            try {
-                ReActAgent agent = createAgent();
-                Msg userMsg = Msg.builder().textContent(instruction).build();
+    private String callAgent(String instruction) {
+        ReActAgent agent = createAgent();
+        Msg userMsg = Msg.builder().textContent(instruction).build();
 
-                agent.call(userMsg)
-                        .timeout(Duration.ofSeconds(120))
-                        .subscribe(
-                                response -> emitter.success(response.getTextContent()),
-                                error -> {
-                                    log.error("Agent call failed", error);
-                                    emitter.error(error);
-                                });
-            } catch (Exception e) {
-                emitter.error(e);
+        try {
+            Msg response = agent.call(userMsg).block(Duration.ofSeconds(120));
+            if (response == null) {
+                throw new RuntimeException("Agent returned null response");
             }
-        });
+            return response.getTextContent();
+        } catch (Exception e) {
+            log.error("Agent call failed", e);
+            throw new RuntimeException("Agent call failed: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -172,7 +265,6 @@ public class PipelinePlanExecutor {
 
     /**
      * 取消计划
-     * 支持取消 PLANNING（待确认）和 RUNNING（执行中）状态的计划
      */
     public void cancelPlan(String planId) {
         Plan plan = runningPlans.get(planId);

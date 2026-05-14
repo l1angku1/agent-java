@@ -49,6 +49,8 @@ function initPlanManager() {
                     if (response.success && response.planId) {
                         currentPlanId = response.planId;
                         showWorkflowActions(response);
+                        isLoading = false;
+                        sendBtn.disabled = false;
                         return;
                     }
                     break;
@@ -74,6 +76,7 @@ function initPlanManager() {
         const cancelBtn = document.getElementById('cancelPlanBtn');
         confirmBtn.disabled = true;
         cancelBtn.disabled = true;
+        sendBtn.disabled = true;
         confirmBtn.textContent = '执行中...';
 
         resultsArea.innerHTML = `
@@ -97,6 +100,7 @@ function initPlanManager() {
 
         confirmBtn.disabled = false;
         cancelBtn.disabled = false;
+        sendBtn.disabled = false;
         confirmBtn.textContent = '确认执行';
     }
 
@@ -107,6 +111,7 @@ function initPlanManager() {
         const cancelBtn = document.getElementById('cancelPlanBtn');
         confirmBtn.disabled = true;
         cancelBtn.disabled = true;
+        sendBtn.disabled = true;
 
         try {
             const response = await api.plan.workflow({ mode: 'cancel', planId: currentPlanId });
@@ -122,6 +127,7 @@ function initPlanManager() {
 
         confirmBtn.disabled = false;
         cancelBtn.disabled = false;
+        sendBtn.disabled = false;
     }
 
     function showLoading() {
@@ -145,25 +151,25 @@ function initPlanManager() {
         if (plan) {
             if (plan.finalAnswer) {
                 finalResult = plan.finalAnswer;
-            } else if (plan.context) {
-                const outputs = Object.values(plan.context);
-                if (outputs.length > 0) {
-                    const lastOutput = outputs[outputs.length - 1];
-                    if (typeof lastOutput === 'object' && lastOutput !== null) {
-                        finalResult = JSON.stringify(lastOutput, null, 2);
-                    } else if (typeof lastOutput === 'string') {
-                        finalResult = lastOutput;
-                    }
-                }
-            }
-
-            if (!finalResult && plan.steps && plan.steps.length > 0) {
+            } else if (plan.steps && plan.steps.length > 0) {
+                // 优先显示步骤结果（更清晰，有步骤名称）
                 const completedSteps = plan.steps.filter(s => s.result);
                 if (completedSteps.length > 0) {
-                    const lastCompletedStep = completedSteps[completedSteps.length - 1];
-                    if (lastCompletedStep.result) {
-                        finalResult = lastCompletedStep.result;
+                    if (completedSteps.length === 1) {
+                        finalResult = completedSteps[0].result;
+                    } else {
+                        finalResult = completedSteps.map((step, index) => {
+                            return `${step.name || `步骤${index + 1}`}:\n${step.result}`;
+                        }).join('\n\n');
                     }
+                }
+            } else if (plan.context) {
+                // 如果没有步骤结果，再显示 context 中的输出
+                const outputs = Object.values(plan.context).filter(v => v && String(v).trim());
+                if (outputs.length > 0) {
+                    finalResult = outputs.length === 1 
+                        ? String(outputs[0]) 
+                        : outputs.join('\n\n');
                 }
             }
         }
@@ -268,6 +274,12 @@ function initPlanManager() {
                                 <div class="step-name">${escapeHtml(step.name || step.title || '步骤 ' + (index + 1))}</div>
                                 ${step.description ? `<div class="step-desc">${escapeHtml(step.description)}</div>` : ''}
                                 ${step.status ? `<div class="step-status status-${step.status.toLowerCase()}">${getStatusText(step.status)}</div>` : ''}
+                                ${step.result ? `
+                                    <div class="step-result">
+                                        <div class="result-label">执行结果:</div>
+                                        <div class="result-text">${escapeHtml(step.result)}</div>
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                     `).join('')}

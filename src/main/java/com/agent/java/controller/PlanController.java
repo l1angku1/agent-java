@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.agent.java.model.plan.Plan;
 import com.agent.java.model.plan.PlanAutoRequest;
-import com.agent.java.model.plan.PlanRequest;
 import com.agent.java.model.plan.PlanResponse;
 import com.agent.java.model.plan.PlanStatus;
 import com.agent.java.model.plan.PlanWorkflowRequest;
@@ -83,14 +82,14 @@ public class PlanController {
             }
 
             log.info("开始自动生成计划: {}", request.getRequest());
-            PlanRequest planRequest = planGenerator.generatePlan(request.getRequest());
-            log.info("计划生成成功: {}", planRequest.getName());
+            Plan plan = planGenerator.generatePlan(request.getRequest());
+            log.info("计划生成成功: {}", plan.getName());
 
-            Plan plan = planExecutor.createPlan(planRequest);
             String planId = plan.getPlanId();
+            planExecutor.createPlan(plan);
 
             log.info("开始执行计划: {}", planId);
-            Plan executedPlan = planExecutor.executePlan(planId).block();
+            Plan executedPlan = planExecutor.executePlan(planId);
 
             return PlanResponse.builder()
                     .success(true)
@@ -115,8 +114,8 @@ public class PlanController {
             }
 
             log.info("生成计划: {}", request.getRequest());
-            PlanRequest planRequest = planGenerator.generatePlan(request.getRequest());
-            Plan plan = planExecutor.createPlan(planRequest);
+            Plan plan = planGenerator.generatePlan(request.getRequest());
+            planExecutor.createPlan(plan);
 
             return PlanResponse.builder()
                     .success(true)
@@ -150,8 +149,8 @@ public class PlanController {
             switch (mode) {
                 case "preview": {
                     log.info("生成计划(预览模式): {}", request.getRequest());
-                    PlanRequest planRequest = planGenerator.generatePlan(request.getRequest());
-                    Plan plan = planExecutor.createPlan(planRequest);
+                    Plan plan = planGenerator.generatePlan(request.getRequest());
+                    planExecutor.createPlan(plan);
                     plan.setStatus(PlanStatus.PLANNING);
 
                     return PlanResponse.builder()
@@ -177,7 +176,7 @@ public class PlanController {
                     }
 
                     log.info("用户确认执行计划: {}", planId);
-                    Plan executedPlan = planExecutor.executePlan(planId).block();
+                    Plan executedPlan = planExecutor.executePlan(planId);
 
                     return PlanResponse.builder()
                             .success(true)
@@ -201,6 +200,7 @@ public class PlanController {
                     }
 
                     planExecutor.cancelPlan(planId);
+
                     return PlanResponse.builder()
                             .success(true)
                             .message("计划已取消")
@@ -226,11 +226,12 @@ public class PlanController {
                 }
 
                 default:
-                    return PlanResponse.builder().success(false).error("无效的 mode 参数: " + mode).build();
+                    return PlanResponse.builder().success(false).error("不支持的模式: " + mode).build();
             }
         } catch (Exception e) {
-            log.error("计划工作流处理失败", e);
+            log.error("计划工作流执行失败", e);
             return PlanResponse.builder().success(false).error(e.getMessage()).build();
         }
     }
+
 }
