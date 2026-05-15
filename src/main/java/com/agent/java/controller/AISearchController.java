@@ -1,17 +1,13 @@
 package com.agent.java.controller;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.agent.java.model.memory.MemoryItem;
 import com.agent.java.model.memory.UserPreference;
 import com.agent.java.model.search.EvaluationResult;
 import com.agent.java.model.search.QueryAnalysis;
@@ -56,23 +52,17 @@ public class AISearchController {
         boolean useMemory = request.isEnableMemory() && request.getUserId() != null;
         boolean useContext = useMemory && request.getSessionId() != null;
         UserPreference preference = null;
-        List<MemoryItem> conversationContext = new ArrayList<>();
 
         if (useMemory) {
             preference = memoryService.getUserPreference(request.getUserId());
             log.info("Using personalized search for user: {}", request.getUserId());
-
-            // 获取对话上下文（如果有会话ID）
-            if (useContext) {
-                conversationContext = memoryService.getConversationContext(request.getSessionId(), 5);
-                log.info("Using conversation context with {} messages", conversationContext.size());
-            }
         }
 
         // 步骤1: 解析用户输入 - 使用大模型进行意图识别
         long parseStartTime = System.currentTimeMillis();
-        QueryAnalysis analysis = parseQueryWithContext(request.getQuery(), preference, conversationContext, useContext,
-                useMemory);
+        QueryAnalysis analysis = useMemory
+                ? queryParserService.parse(request.getQuery(), preference)
+                : queryParserService.parse(request.getQuery());
         long parseTime = System.currentTimeMillis() - parseStartTime;
         log.debug("Step 1 - Query parsing completed in {}ms", parseTime);
 
@@ -213,8 +203,9 @@ public class AISearchController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/analyze")
-    public ResponseEntity<QueryAnalysis> analyzeQuery(@RequestParam("query") String query) {
+    @PostMapping("/analyze")
+    public ResponseEntity<QueryAnalysis> analyzeQuery(@RequestBody SearchRequest request) {
+        String query = request.getQuery();
         QueryAnalysis analysis = queryParserService.parse(query);
         analysis.setOriginalQuery(query);
         return ResponseEntity.ok(analysis);
@@ -228,16 +219,5 @@ public class AISearchController {
                 .goodsCount(String.valueOf(vectorRecallService.getGoodsCount()))
                 .message("Goods data reloaded successfully")
                 .build());
-    }
-
-    private QueryAnalysis parseQueryWithContext(String query, UserPreference preference,
-            List<MemoryItem> conversationContext, boolean useContext, boolean useMemory) {
-        if (useContext && !conversationContext.isEmpty()) {
-            return queryParserService.parse(query, preference, conversationContext);
-        } else if (useMemory) {
-            return queryParserService.parse(query, preference);
-        } else {
-            return queryParserService.parse(query);
-        }
     }
 }

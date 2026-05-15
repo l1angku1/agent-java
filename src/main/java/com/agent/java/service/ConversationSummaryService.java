@@ -73,7 +73,6 @@ public class ConversationSummaryService {
             // 调用LLM
             String result = aiService.generate(prompt);
 
-            log.debug("Generated conversation summary: {}", result);
             return result != null ? result : "";
         } catch (Exception e) {
             log.error("Failed to summarize conversation", e);

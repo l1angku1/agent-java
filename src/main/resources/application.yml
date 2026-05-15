@@ -39,15 +39,8 @@ semantic:
 logging:
   level:
     com.agent.java: DEBUG
-    io.agentscope: TRACE
-    io.agentscope.core: TRACE
-    io.agentscope.core.model: TRACE
-    io.agentscope.core.skill: TRACE
-    io.agentscope.core.tool: TRACE
+    io.agentscope: DEBUG
     okhttp3: DEBUG
-    okhttp3.internal.http: DEBUG
-    org.springframework.web.client: DEBUG
-    org.springframework.ai: TRACE
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   file:

@@ -35,13 +35,13 @@ public class FilterExpressionParser {
         }
         
         try {
-            // 先按 || 分割（或条件）
-            String[] orConditions = expression.split("\\|\\|");
+            // 先按 or 分割（或条件）
+            String[] orConditions = expression.split("\\bor\\b");
             
             for (String orCondition : orConditions) {
                 orCondition = orCondition.trim();
-                // 再按 && 分割（与条件）
-                String[] andConditions = orCondition.split("&&");
+                // 再按 and 分割（与条件）
+                String[] andConditions = orCondition.split("\\band\\b");
                 
                 boolean allAndMatch = true;
                 for (String condition : andConditions) {

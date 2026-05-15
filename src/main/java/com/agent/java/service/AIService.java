@@ -47,18 +47,18 @@ public class AIService {
      * @return 模型响应内容
      */
     public String generate(String prompt) {
-        log.debug("AI Service generating response for prompt (length: {})", prompt.length());
-
         ReActAgent agent = createAgent();
 
         Msg request = Msg.builder()
                 .textContent(prompt)
                 .build();
 
+        log.info("AI Service request content:\n{}", request.getTextContent());
+
         Msg response = agent.call(request).block(Duration.ofMinutes(5));
 
         if (response != null && response.getTextContent() != null) {
-            log.debug("AI Service response received (length: {})", response.getTextContent().length());
+            log.info("AI Service response content:\n{}", response.getTextContent());
             return response.getTextContent().trim();
         }
 

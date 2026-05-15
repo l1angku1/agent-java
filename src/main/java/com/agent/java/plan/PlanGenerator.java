@@ -87,10 +87,13 @@ public class PlanGenerator {
             Msg userMsg = Msg.builder()
                     .textContent(fullPrompt)
                     .build();
+            log.info("AI Service request content:\n{}", userMsg.getTextContent());
 
             Msg response = agent.call(userMsg).block(Duration.ofSeconds(60));
 
             String content = response != null ? response.getTextContent() : "";
+            log.info("AI Service response content:\n{}", content);
+
             return parsePlanFromResponse(content);
 
         } catch (Exception e) {
@@ -106,23 +109,22 @@ public class PlanGenerator {
         try {
             String json = extractJson(content);
             Plan parsed = objectMapper.readValue(json, Plan.class);
-            
+
             Plan plan = Plan.create(parsed.getName(), parsed.getDescription(), parsed.getOriginalRequest());
-            
+
             if (parsed.getSteps() != null) {
                 for (Step step : parsed.getSteps()) {
                     plan.addStep(
-                        step.getName(),
-                        step.getInstruction(),
-                        step.getOutputKey(),
-                        step.getDependsOn(),
-                        step.getMaxRetries(),
-                        step.getTimeoutSeconds(),
-                        step.getFailStrategy()
-                    );
+                            step.getName(),
+                            step.getInstruction(),
+                            step.getOutputKey(),
+                            step.getDependsOn(),
+                            step.getMaxRetries(),
+                            step.getTimeoutSeconds(),
+                            step.getFailStrategy());
                 }
             }
-            
+
             return plan;
         } catch (Exception e) {
             log.error("解析计划JSON失败: {}", content, e);

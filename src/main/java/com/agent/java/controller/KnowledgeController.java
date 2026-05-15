@@ -47,12 +47,15 @@ public class KnowledgeController {
      */
     @PostMapping("/query")
     public KnowledgeResponse query(@RequestBody KnowledgeRequest knowledgeRequest) {
-        log.info("知识查询请求: {}", knowledgeRequest.getQuery());
         ReActAgent agent = createAgent();
         try {
             Msg request = Msg.builder().textContent(knowledgeRequest.getQuery()).build();
+            log.info("知识查询请求: {}", request.getTextContent());
+
             Msg response = agent.call(request).block(Duration.ofSeconds(30));
             String responseText = response != null ? response.getTextContent() : "无回答";
+            log.info("知识查询响应: {}", responseText);
+
             return parseJsonResponse(responseText);
         } catch (Exception e) {
             log.error("知识查询异常: {}", e.getMessage(), e);

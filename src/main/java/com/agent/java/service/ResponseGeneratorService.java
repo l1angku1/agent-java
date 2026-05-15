@@ -133,7 +133,6 @@ public class ResponseGeneratorService {
             throw new RuntimeException("AI service returned empty response for query: " + query);
         }
 
-        log.debug("Generated response (length: {})", response.length());
         return response;
     }
 

@@ -1,12 +1,16 @@
 package com.agent.java.model.search;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * AI搜索请求模型
  * 用于接收用户的搜索请求参数
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class SearchRequest {
 
     /**

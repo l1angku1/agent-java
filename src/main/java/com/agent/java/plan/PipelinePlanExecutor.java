@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.springframework.stereotype.Component;
@@ -184,7 +185,7 @@ public class PipelinePlanExecutor {
             throws Exception {
         CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> callAgent(instruction));
         try {
-            return future.get(timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
+            return future.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             future.cancel(true);
             throw e;
@@ -233,12 +234,15 @@ public class PipelinePlanExecutor {
     private String callAgent(String instruction) {
         ReActAgent agent = createAgent();
         Msg userMsg = Msg.builder().textContent(instruction).build();
+        log.info("AI Service request content:\n{}", userMsg.getTextContent());
 
         try {
             Msg response = agent.call(userMsg).block(Duration.ofSeconds(120));
             if (response == null) {
                 throw new RuntimeException("Agent returned null response");
             }
+
+            log.info("AI Service response content:\n{}", response.getTextContent());
             return response.getTextContent();
         } catch (Exception e) {
             log.error("Agent call failed", e);

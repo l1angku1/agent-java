@@ -78,7 +78,6 @@ public class ModelEvaluationService {
         String responseContent = aiService.generate(prompt);
 
         if (responseContent != null) {
-            log.debug("Evaluation response: {}", responseContent);
 
             try {
                 return parseEvaluationResponse(responseContent);
